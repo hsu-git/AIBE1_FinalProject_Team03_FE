@@ -18,7 +18,7 @@ export async function reserveSeat(concertId, seatId) {
 
 // 좌석 선점 해제 API
 export async function releaseSeat(concertId, seatId) {
-    const response = await apiClient.post(
+    const response = await apiClient.delete(
         `/seats/concerts/${concertId}/seats/${seatId}/release`,
     );
     return response.data; // String ("SUCCESS")
