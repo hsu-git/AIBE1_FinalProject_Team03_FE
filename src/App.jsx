@@ -75,7 +75,13 @@ export default function App() {
             <Route element={<MainLayout />}>
                 <Route
                     path="concerts/:concertId/wait" // 새로운 경로 추가
-                    element={user ? <WaitingPage /> : <Navigate to="/login" replace />}
+                    element={
+                        user ? (
+                            <WaitingPage />
+                        ) : (
+                            <Navigate to="/login" replace />
+                        )
+                    }
                 />
                 <Route
                     path="concerts/:concertId/reserve"

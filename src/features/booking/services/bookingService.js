@@ -38,11 +38,16 @@ export async function createBookingAndPreparePayment(bookingCreateRequest) {
  */
 export async function enterWaitingQueue(concertId) {
     try {
-        const response = await apiClient.post(`/queue/enter?concertId=${concertId}`);
+        const response = await apiClient.post(
+            `/queue/enter?concertId=${concertId}`,
+        );
         console.log('[enterWaitingQueue] Success:', response);
         return response.data;
     } catch (error) {
-        console.error(`[enterWaitingQueue] 실패 (concertId: ${concertId}):`, error);
+        console.error(
+            `[enterWaitingQueue] 실패 (concertId: ${concertId}):`,
+            error,
+        );
         throw error; // 호출자에게 에러를 전달
     }
 }

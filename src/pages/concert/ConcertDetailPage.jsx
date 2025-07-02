@@ -238,7 +238,7 @@ function ConcertDetailPage() {
                             isEntering
                         }
                     >
-                        { isEntering ? '처리 중...' : currentStatus.buttonText}
+                        {isEntering ? '처리 중...' : currentStatus.buttonText}
                     </button>
 
                     {/* 콘서트 상태 표시 */}
