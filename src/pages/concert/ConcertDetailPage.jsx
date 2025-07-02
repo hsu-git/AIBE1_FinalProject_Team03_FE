@@ -1,7 +1,10 @@
 // src/pages/concert/ConcertDetailPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchConcertDetail } from '../../features/concert/services/concertService';
+import {
+  fetchConcertDetail,
+  enterWaitingQueue
+} from '../../features/concert/services/concertService';
 
 function ConcertDetailPage() {
   const { concertId } = useParams();
@@ -9,6 +12,7 @@ function ConcertDetailPage() {
   const [concert, setConcert] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEntering, setIsEntering] = useState(false);
 
   useEffect(() => {
     async function getConcertDetail() {
@@ -27,8 +31,45 @@ function ConcertDetailPage() {
     getConcertDetail();
   }, [concertId]);
 
-  const handleReserveClick = () => {
-    navigate(`/concerts/${concertId}/reserve`);
+  const handleReserveClick = async () => {
+    setIsEntering(true);
+    try {
+      const response = await enterWaitingQueue(concertId);
+
+      // 백엔드 응답의 status에 따라 분기
+      switch (response.status) {
+        case 'WAITING':
+          // 대기열로 이동
+          console.log(`대기열 진입. 순번: ${response.rank}`);
+          navigate(`/concerts/${concertId}/wait`, {
+            state: { rank: response.rank }
+          });
+          break;
+
+        case 'IMMEDIATE_ENTRY':
+          // 즉시 입장. accessKey 저장 후 예매 페이지로 이동
+          console.log('즉시 입장 허가. Access Key 수신.');
+          sessionStorage.setItem(`accessKey-${concertId}`, response.accessKey);
+          navigate(`/concerts/${concertId}/reserve`);
+          break;
+
+        case 'ERROR':
+          // 백엔드가 보낸 에러 메시지 표시
+          console.error(`에러 발생: ${response.message}`);
+          alert(response.message);
+          break;
+
+        default:
+          // 예상치 못한 상태값 처리
+          console.warn(`알 수 없는 응답 상태: ${response.status}`);
+          alert('알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      }
+    } catch (err) {
+      console.error('대기열 진입 요청 실패:', err);
+      alert(err.message || '요청 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsEntering(false);
+    }
   };
 
   if (loading)
@@ -150,9 +191,10 @@ function ConcertDetailPage() {
           ))}
           <button
             onClick={handleReserveClick}
+            disabled={isEntering}
             className=" mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition hover:scale-[1.02]"
           >
-            예매하기
+            {isEntering ? '처리 중...' : '예매하기'}
           </button>
         </div>
       </div>
