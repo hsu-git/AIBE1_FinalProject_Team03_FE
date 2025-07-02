@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Calendar, Eye, EyeOff, Camera, Phone, Mail, MapPin, Edit2, Save, X } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { User, Lock, Calendar } from 'lucide-react';
+
 import { ProfileTab } from '../../features/user/components/ProfileTab';
 import { PasswordTab } from '../../features/user/components/PasswordTab';
 import { BookingsTab } from '../../features/user/components/BookingsTab';
 import { userService } from '../../features/user/services/userService';
 
 export default function Profile() {
+    const location = useLocation();
     const [activeTab, setActiveTab] = useState('profile');
     const [userInfo, setUserInfo] = useState(null);
     const [bookingHistory, setBookingHistory] = useState([]);
@@ -28,13 +31,25 @@ export default function Profile() {
         loadUserInfo();
     }, []);
 
+    useEffect(() => {
+        if (location.state?.from === 'bookingDetail') {
+            setActiveTab('bookings');
+        }
+    }, [location.state]);
+
     // 예매 내역 로드 (예매 내역 탭 선택 시)
     useEffect(() => {
-        if (activeTab === 'bookings' && userInfo && bookingHistory.length === 0) {
+        if (
+            activeTab === 'bookings' &&
+            userInfo &&
+            bookingHistory.length === 0
+        ) {
             const loadBookingHistory = async () => {
                 setIsBookingsLoading(true);
                 try {
-                    const data = await userService.getBookingHistory(userInfo.id);
+                    const data = await userService.getBookingHistory(
+                        userInfo.id,
+                    );
                     setBookingHistory(data);
                 } catch (error) {
                     console.error('Failed to load booking history:', error);
@@ -59,14 +74,6 @@ export default function Profile() {
     // 비밀번호 변경
     const handleChangePassword = async (passwordData) => {
         return await userService.changePassword(passwordData);
-    };
-
-    // 예매 취소
-    const handleCancelBooking = async (bookingId) => {
-        // 실제로는 API 호출
-        setBookingHistory((prev) =>
-            prev.map((booking) => (booking.id === bookingId ? { ...booking, status: 'cancelled' } : booking))
-        );
     };
 
     const tabs = [
@@ -99,7 +106,6 @@ export default function Profile() {
             props: {
                 bookingHistory,
                 isLoading: isBookingsLoading,
-                onCancelBooking: handleCancelBooking,
             },
         },
     ];
@@ -118,7 +124,9 @@ export default function Profile() {
                 {/* Page Title */}
                 <div className="text-center mb-8">
                     <h2 className="text-3xl font-bold mb-2">My Account</h2>
-                    <p className="text-gray-400">프로필과 계정 설정을 관리하세요</p>
+                    <p className="text-gray-400">
+                        프로필과 계정 설정을 관리하세요
+                    </p>
                 </div>
 
                 {/* Tab Navigation */}
@@ -137,7 +145,9 @@ export default function Profile() {
                                     }`}
                                 >
                                     <Icon size={18} />
-                                    <span className="font-medium">{tab.label}</span>
+                                    <span className="font-medium">
+                                        {tab.label}
+                                    </span>
                                 </button>
                             );
                         })}
@@ -145,7 +155,9 @@ export default function Profile() {
                 </div>
 
                 {/* Content Area */}
-                <div className="bg-gray-800 rounded-2xl p-8">{getCurrentTabComponent()}</div>
+                <div className="bg-gray-800 rounded-2xl p-8">
+                    {getCurrentTabComponent()}
+                </div>
             </div>
         </div>
     );

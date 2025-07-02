@@ -19,11 +19,14 @@ export const AuthProvider = ({ children }) => {
                 });
                 if (res.ok) {
                     const data = await res.json();
+                    // console.log('AuthContext: Fetched user data:', data);
                     setUser(data); // 로그인 상태로 설정
                 } else {
                     setUser(null);
                 }
             } catch {
+                // catch(error) {
+                //         console.error('AuthContext: Failed to fetch user data:', error);
                 setUser(null);
             } finally {
                 setLoading(false);
@@ -51,5 +54,9 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    return <AuthContext.Provider value={{ user, login, logout, loading }}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={{ user, login, logout, loading }}>
+            {children}
+        </AuthContext.Provider>
+    );
 };

@@ -44,7 +44,9 @@ export function ProfileTab({ userInfo, onUpdateUserInfo, isLoading }) {
         } catch (error) {
             console.error('Profile update failed:', error);
             setErrors({
-                _general: error.response?.data?.message || '정보 수정에 실패했습니다. 다시 시도해주세요.',
+                _general:
+                    error.response?.data?.message ||
+                    '정보 수정에 실패했습니다. 다시 시도해주세요.',
             });
         } finally {
             setIsSaving(false);
@@ -89,7 +91,9 @@ export function ProfileTab({ userInfo, onUpdateUserInfo, isLoading }) {
     if (!userInfo) {
         return (
             <div className="text-center py-12">
-                <p className="text-gray-400">사용자 정보를 불러올 수 없습니다.</p>
+                <p className="text-gray-400">
+                    사용자 정보를 불러올 수 없습니다.
+                </p>
             </div>
         );
     }
@@ -101,11 +105,17 @@ export function ProfileTab({ userInfo, onUpdateUserInfo, isLoading }) {
                 <div className="flex items-center space-x-6">
                     <div className="relative">
                         <div className="w-24 h-24 bg-gradient-to-br from-pink-400 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-2xl font-bold text-white">{userInfo.name?.charAt(0) || 'U'}</span>
+                            <span className="text-2xl font-bold text-white">
+                                {userInfo.name?.charAt(0) || 'U'}
+                            </span>
                         </div>
                         <button
                             className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors"
-                            onClick={() => alert('프로필 이미지 업로드 기능은 준비 중입니다.')}
+                            onClick={() =>
+                                alert(
+                                    '프로필 이미지 업로드 기능은 준비 중입니다.',
+                                )
+                            }
                         >
                             <Camera size={16} />
                         </button>
@@ -127,19 +137,25 @@ export function ProfileTab({ userInfo, onUpdateUserInfo, isLoading }) {
 
             {/* Profile Form */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {profileInputType.map(({ name, type, icon, labelName, disable }) => (
-                    <EditProfileForm
-                        key={name}
-                        icon={icon}
-                        name={name}
-                        labelName={labelName}
-                        type={type}
-                        value={isEditing ? editInfo[name] || '' : userInfo[name] || ''}
-                        onChange={handleInputChange(name)}
-                        disabled={disable ? disable : !isEditing}
-                        error={errors[name]}
-                    />
-                ))}
+                {profileInputType.map(
+                    ({ name, type, icon, labelName, disable }) => (
+                        <EditProfileForm
+                            key={name}
+                            icon={icon}
+                            name={name}
+                            labelName={labelName}
+                            type={type}
+                            value={
+                                isEditing
+                                    ? editInfo[name] || ''
+                                    : userInfo[name] || ''
+                            }
+                            onChange={handleInputChange(name)}
+                            disabled={disable ? disable : !isEditing}
+                            error={errors[name]}
+                        />
+                    ),
+                )}
             </div>
 
             {/* Save Button */}

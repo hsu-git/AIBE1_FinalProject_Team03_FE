@@ -1,205 +1,259 @@
 // src/pages/concert/ConcertDetailPage.jsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  fetchConcertDetail,
-  enterWaitingQueue
-} from '../../features/concert/services/concertService';
+
+// 새로운 컴포넌트들 import
+import ConcertDetail from '../../features/concert/components/ConcertDetail.jsx';
+import AISummary from '../../features/concert/components/AISummary.jsx';
+import ReviewList from '../../features/concert/components/ReviewList.jsx';
+import ExpectationList from '../../features/concert/components/ExpectationList.jsx';
+
+// 새로운 hooks import
+import { useConcertDetail } from '../../features/concert/hooks/useConcertDetail.js';
+import { useReviews } from '../../features/concert/hooks/useReviews.js';
+import { useExpectations } from '../../features/concert/hooks/useExpectations.js';
+import { useBookingQueue } from '../../features/booking/hooks/useBookingQueue';
 
 function ConcertDetailPage() {
-  const { concertId } = useParams();
-  const navigate = useNavigate();
-  const [concert, setConcert] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isEntering, setIsEntering] = useState(false);
+    const { concertId } = useParams();
+    const navigate = useNavigate();
 
-  useEffect(() => {
-    async function getConcertDetail() {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetchConcertDetail(concertId);
-        setConcert(response);
-      } catch (err) {
-        console.error('콘서트 상세 정보를 가져오는 데 실패했습니다:', err);
-        setError(err.message || '콘서트 상세 정보를 불러오지 못했습니다.');
-      } finally {
-        setLoading(false);
-      }
+    // 콘서트 상태별 설정 (함수 상단으로 이동)
+    const statusConfig = {
+        SOLD_OUT: {
+            buttonText: '매진',
+            statusText: '매진',
+            color: 'text-red-600',
+        },
+        CANCELLED: {
+            buttonText: '취소됨',
+            statusText: '취소됨',
+            color: 'text-gray-600',
+        },
+        SCHEDULED: {
+            buttonText: '예매 대기',
+            statusText: '예매 대기',
+            color: 'text-yellow-600',
+        },
+        ON_SALE: {
+            buttonText: '예매하기',
+            statusText: '예매 중',
+            color: 'text-green-600',
+        },
+        COMPLETED: {
+            buttonText: '공연 완료',
+            statusText: '공연 완료',
+            color: 'text-gray-600',
+        },
+    };
+
+    // 콘서트 상세 정보 hook
+    const parsedConcertId = parseInt(concertId);
+    if (isNaN(parsedConcertId)) {
+        return (
+            <div className="text-center text-red-500 py-10">
+                잘못된 콘서트 ID 입니다.
+            </div>
+        );
     }
-    getConcertDetail();
-  }, [concertId]);
 
-  const handleReserveClick = async () => {
-    setIsEntering(true);
-    try {
-      const response = await enterWaitingQueue(concertId);
+    const {
+        concert,
+        aiSummary,
+        loading: concertLoading,
+        error: concertError,
+        fetchAISummary,
+        aiSummaryLoading,
+    } = useConcertDetail(parsedConcertId);
 
-      // 백엔드 응답의 status에 따라 분기
-      switch (response.status) {
-        case 'WAITING':
-          // 대기열로 이동
-          console.log(`대기열 진입. 순번: ${response.rank}`);
-          navigate(`/concerts/${concertId}/wait`, {
-            state: { rank: response.rank }
-          });
-          break;
+    // 리뷰 목록 hook
+    const {
+        reviews,
+        loading: reviewsLoading,
+        error: reviewsError,
+        currentPage: reviewsPage,
+        totalPages: reviewsTotalPages,
+        totalElements: reviewsTotal,
+        goToPage: goToReviewsPage,
+        changeSorting: changeReviewsSorting,
+        sortBy: reviewsSortBy,
+        sortDir: reviewsSortDir,
+    } = useReviews(parsedConcertId);
 
-        case 'IMMEDIATE_ENTRY':
-          // 즉시 입장. accessKey 저장 후 예매 페이지로 이동
-          console.log('즉시 입장 허가. Access Key 수신.');
-          sessionStorage.setItem(`accessKey-${concertId}`, response.accessKey);
-          navigate(`/concerts/${concertId}/reserve`);
-          break;
+    // 기대평 목록 hook
+    const {
+        expectations,
+        loading: expectationsLoading,
+        error: expectationsError,
+        currentPage: expectationsPage,
+        totalPages: expectationsTotalPages,
+        totalElements: expectationsTotal,
+        goToPage: goToExpectationsPage,
+    } = useExpectations(parsedConcertId);
 
-        case 'ERROR':
-          // 백엔드가 보낸 에러 메시지 표시
-          console.error(`에러 발생: ${response.message}`);
-          alert(response.message);
-          break;
+    const { enterQueue, isEntering } = useBookingQueue(concertId);
 
-        default:
-          // 예상치 못한 상태값 처리
-          console.warn(`알 수 없는 응답 상태: ${response.status}`);
-          alert('알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-      }
-    } catch (err) {
-      console.error('대기열 진입 요청 실패:', err);
-      alert(err.message || '요청 처리 중 오류가 발생했습니다.');
-    } finally {
-      setIsEntering(false);
+    // 리뷰 클릭 핸들러 (상세보기나 수정 등)
+    const handleReviewClick = (review) => {
+        console.log('리뷰 클릭:', review);
+        // 추후 리뷰 상세 모달이나 페이지로 이동 구현
+    };
+
+    // 기대평 클릭 핸들러
+    const handleExpectationClick = (expectation) => {
+        console.log('기대평 클릭:', expectation);
+        // 추후 기대평 상세 모달이나 수정 구현
+    };
+
+    // 콘서트 정보 로딩 중이면 로딩 표시
+    if (concertLoading) {
+        return (
+            <div className="text-center py-10">콘서트 상세 정보 로딩 중...</div>
+        );
     }
-  };
 
-  if (loading)
-    return <div className="text-center py-10">콘서트 상세 정보 로딩 중...</div>;
-  if (error)
-    return <div className="text-center text-red-500 py-10">에러: {error}</div>;
-  if (!concert)
+    // 콘서트 정보 에러 시 에러 표시
+    if (concertError) {
+        return (
+            <div className="text-center text-red-500 py-10">
+                에러: {concertError}
+            </div>
+        );
+    }
+
+    // 콘서트 정보가 없으면 안내 메시지
+    if (!concert) {
+        return (
+            <div className="text-center text-gray-500 py-10">
+                콘서트 정보를 찾을 수 없습니다.
+            </div>
+        );
+    }
+
+    // 현재 콘서트 상태 확인
+    const currentStatus = statusConfig[concert.status] || statusConfig.ON_SALE;
+
     return (
-      <div className="text-center text-gray-500 py-10">
-        콘서트 정보를 찾을 수 없습니다.
-      </div>
+        <div className="max-w-6xl mx-auto p-6 overflow-x-hidden">
+            <h1 className="text-4xl font-bold mb-6 text-gray-800 text-center break-words">
+                {concert.title}
+            </h1>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* 좌측 상세 콘텐츠 */}
+                <div className="lg:col-span-2 space-y-8">
+                    {/* 콘서트 상세 정보 컴포넌트 */}
+                    <div className="bg-white rounded-xl shadow-md">
+                        <ConcertDetail
+                            concert={concert}
+                            loading={concertLoading}
+                            error={concertError}
+                            onBookingClick={enterQueue}
+                            isBooking={isEntering}
+                            showBookingButton={true}
+                            compact={false}
+                        />
+                    </div>
+
+                    {/* AI 요약 컴포넌트 */}
+                    {(aiSummary || aiSummaryLoading) && (
+                        <div className="bg-white rounded-xl shadow-md p-6">
+                            <AISummary
+                                summary={aiSummary}
+                                loading={aiSummaryLoading}
+                                onRefresh={fetchAISummary}
+                                showRefreshButton={false}
+                                compact={false}
+                            />
+                        </div>
+                    )}
+
+                    {/* 리뷰 목록 컴포넌트 */}
+                    <div className="bg-white rounded-xl shadow-md p-6">
+                        <ReviewList
+                            reviews={reviews}
+                            loading={reviewsLoading}
+                            error={reviewsError}
+                            currentPage={reviewsPage}
+                            totalPages={reviewsTotalPages}
+                            totalElements={reviewsTotal}
+                            sortBy={reviewsSortBy}
+                            sortDir={reviewsSortDir}
+                            onReviewClick={handleReviewClick}
+                            onSortChange={changeReviewsSorting}
+                            onPageChange={goToReviewsPage}
+                            showSortOptions={true}
+                            showPagination={true}
+                            compact={false}
+                        />
+                    </div>
+
+                    {/* 기대평 목록 컴포넌트 */}
+                    <div className="bg-white rounded-xl shadow-md p-6">
+                        <ExpectationList
+                            expectations={expectations}
+                            loading={expectationsLoading}
+                            error={expectationsError}
+                            currentPage={expectationsPage}
+                            totalPages={expectationsTotalPages}
+                            totalElements={expectationsTotal}
+                            onExpectationClick={handleExpectationClick}
+                            onPageChange={goToExpectationsPage}
+                            showPagination={true}
+                            compact={false}
+                        />
+                    </div>
+                </div>
+
+                {/* 우측 티켓 정보 사이드바 */}
+                <div className="lg:sticky lg:top-24 lg:self-start bg-blue-50 p-6 rounded-xl shadow-md space-y-4 h-fit">
+                    <h2 className="text-xl font-bold text-blue-900">
+                        티켓 등급 및 가격
+                    </h2>
+                    {[
+                        { type: '일반석', price: 50000 },
+                        { type: 'VIP', price: 100000 },
+                        { type: '프리미엄', price: 150000 },
+                    ].map((ticket) => (
+                        <div
+                            key={ticket.type}
+                            className="flex justify-between bg-white px-4 py-3 rounded-lg shadow-sm"
+                        >
+                            <span className="text-sm font-semibold text-gray-700">
+                                {ticket.type}
+                            </span>
+                            <span className="text-blue-600 font-bold">
+                                {ticket.price.toLocaleString()}원
+                            </span>
+                        </div>
+                    ))}
+
+                    <button
+                        onClick={enterQueue}
+                        className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition hover:scale-[1.02] disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        disabled={
+                            concert.status === 'SOLD_OUT' ||
+                            concert.status === 'CANCELLED' ||
+                            concert.status === 'COMPLETED' ||
+                            isEntering
+                        }
+                    >
+                        { isEntering ? '처리 중...' : currentStatus.buttonText}
+                    </button>
+
+                    {/* 콘서트 상태 표시 */}
+                    <div className="text-center text-sm text-gray-600 mt-2">
+                        현재 상태:{' '}
+                        <span
+                            className={`font-semibold ${currentStatus.color}`}
+                        >
+                            {currentStatus.statusText}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
-
-  return (
-    <div className="max-w-6xl  mx-auto p-6 overflow-x-hidden">
-      <h1 className="text-4xl font-bold mb-6 text-gray-800 text-center break-words">
-        {concert.title}
-      </h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* 좌측 상세 콘텐츠 */}
-        <div className="lg:sticky ... h-fit min-w-0">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* <div className="md:w-1/2">
-              {concert.posterImageUrl ? (
-                <img
-                  src={concert.posterImageUrl}
-                  alt={concert.title}
-                  className=" h-auto object-cover rounded-xl shadow-md"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src =
-                      'https://placehold.co/600x400/cccccc/333333?text=No+Image';
-                  }}
-                />
-              ) : (
-                <div className=" h-80 bg-gray-200 flex items-center justify-center rounded-xl text-gray-500">
-                  <span className="text-xl">포스터 없음</span>
-                </div>
-              )}
-            </div> */}
-            <div className="md:w-1/2 space-y-3 text-gray-700 break-words">
-              <p>
-                <strong>아티스트:</strong> {concert.artist}
-              </p>
-              <p>
-                <strong>공연장:</strong> {concert.venueName}
-              </p>
-              <p>
-                <strong>주소:</strong> {concert.venueAddress}
-              </p>
-              <p>
-                <strong>공연 날짜:</strong> {concert.concertDate}
-              </p>
-              <p>
-                <strong>공연 시간:</strong> {concert.startTime} ~{' '}
-                {concert.endTime}
-              </p>
-              <p>
-                <strong>총 좌석 수:</strong> {concert.totalSeats}석
-              </p>
-              <p>
-                <strong>예매 시작:</strong>{' '}
-                {new Date(concert.bookingStartDate).toLocaleString()}
-              </p>
-              <p>
-                <strong>예매 종료:</strong>{' '}
-                {new Date(concert.bookingEndDate).toLocaleString()}
-              </p>
-              {concert.aiSummary && (
-                <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-lg">
-                  <strong className="block mb-1">AI 요약:</strong>
-                  <p className="text-sm leading-relaxed">{concert.aiSummary}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 후기 섹션 */}
-          <div className="border-t pt-8">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">
-              콘서트 후기
-            </h2>
-            <p className="text-gray-600">
-              콘서트 후기 섹션은 추후 구현될 예정입니다.
-            </p>
-          </div>
-
-          {/* 기대평 섹션 */}
-          <div className="border-t pt-8">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">
-              콘서트 기대평
-            </h2>
-            <p className="text-gray-600">
-              콘서트 기대평 섹션은 추후 구현될 예정입니다.
-            </p>
-          </div>
-        </div>
-
-        {/* 우측 티켓 정보 사이드바 */}
-        <div className="lg:sticky lg:top-24 lg:self-start bg-blue-50 p-6 rounded-xl shadow-md space-y-4 h-fit">
-          <h2 className="text-xl font-bold text-blue-900">티켓 등급 및 가격</h2>
-          {[
-            { type: '일반석', price: 50000 },
-            { type: 'VIP', price: 100000 },
-            { type: '프리미엄', price: 150000 }
-          ].map((ticket) => (
-            <div
-              key={ticket.type}
-              className="flex justify-between bg-white px-4 py-3 rounded-lg shadow-sm"
-            >
-              <span className="text-sm font-semibold text-gray-700">
-                {ticket.type}
-              </span>
-              <span className="text-blue-600 font-bold">
-                {ticket.price.toLocaleString()}원
-              </span>
-            </div>
-          ))}
-          <button
-            onClick={handleReserveClick}
-            disabled={isEntering}
-            className=" mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition hover:scale-[1.02]"
-          >
-            {isEntering ? '처리 중...' : '예매하기'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default ConcertDetailPage;

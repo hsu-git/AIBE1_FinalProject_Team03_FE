@@ -1,6 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, socialLoginUser } from '../../features/auth/services/loginService';
+import {
+    loginUser,
+    socialLoginUser,
+} from '../../features/auth/services/loginService';
 import { AuthContext } from '../../context/AuthContext'; // 로그인 상태 사용
 
 export default function Login() {
@@ -19,7 +22,9 @@ export default function Login() {
             login(userData);
             navigate('/');
         } else {
-            setErrorMessage('로그인 실패: 아이디 또는 비밀번호를 확인해주세요.');
+            setErrorMessage(
+                '로그인 실패: 아이디 또는 비밀번호를 확인해주세요.',
+            );
         }
     };
 
@@ -34,14 +39,19 @@ export default function Login() {
                 <div className="w-full max-w-md space-y-8">
                     {/* Welcome Title */}
                     <div className="text-center">
-                        <h1 className="text-3xl font-bold text-white mb-8">다시 오신 것을 환영합니다</h1>
+                        <h1 className="text-3xl font-bold text-white mb-8">
+                            다시 오신 것을 환영합니다
+                        </h1>
                     </div>
 
                     {/* 로그인 유저 확인용 */}
                     {user && (
                         <div className="card bg-white">
                             {user.username}님 환영합니다.
-                            <button onClick={logout} style={{ marginLeft: '10px' }}>
+                            <button
+                                onClick={logout}
+                                style={{ marginLeft: '10px' }}
+                            >
                                 로그아웃
                             </button>
                         </div>
@@ -50,7 +60,10 @@ export default function Login() {
                     {/* Login Form */}
                     <div className="space-y-6">
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                            <label
+                                htmlFor="email"
+                                className="block text-sm font-medium text-gray-300 mb-2"
+                            >
                                 아이디
                             </label>
                             <input
@@ -64,7 +77,10 @@ export default function Login() {
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                            <label
+                                htmlFor="password"
+                                className="block text-sm font-medium text-gray-300 mb-2"
+                            >
                                 비밀번호
                             </label>
                             <input
@@ -86,7 +102,11 @@ export default function Login() {
                     </div>
 
                     {/* 로그인 실패 메시지 표시 */}
-                    {errorMessage && <div className="text-red-400 text-sm text-center mt-4">{errorMessage}</div>}
+                    {errorMessage && (
+                        <div className="text-red-400 text-sm text-center mt-4">
+                            {errorMessage}
+                        </div>
+                    )}
 
                     {/* Divider */}
                     <div className="relative">
@@ -94,7 +114,9 @@ export default function Login() {
                             <div className="w-full border-t border-gray-700"></div>
                         </div>
                         <div className="relative flex justify-center text-sm">
-                            <span className="px-4 bg-gray-900 text-gray-400">또는 다음으로 계속하기</span>
+                            <span className="px-4 bg-gray-900 text-gray-400">
+                                또는 다음으로 계속하기
+                            </span>
                         </div>
                     </div>
 
@@ -130,7 +152,11 @@ export default function Login() {
                             className="w-full flex items-center justify-center px-4 py-3 border border-gray-700 rounded-lg text-white hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                         >
                             <div className="w-5 h-5 mr-3 bg-yellow-400 rounded flex items-center justify-center">
-                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="black">
+                                <svg
+                                    className="w-3 h-3"
+                                    viewBox="0 0 24 24"
+                                    fill="black"
+                                >
                                     <path d="M12 3c5.799 0 10.5 3.664 10.5 8.185 0 4.52-4.701 8.184-10.5 8.184a13.5 13.5 0 0 1-1.727-.11l-4.408 2.883c-.501.265-.678.236-.472-.413l.892-3.678c-2.88-1.46-4.785-3.99-4.785-6.866C1.5 6.665 6.201 3 12 3z" />
                                 </svg>
                             </div>
@@ -142,7 +168,9 @@ export default function Login() {
                             className="w-full flex items-center justify-center px-4 py-3 border border-gray-700 rounded-lg text-white hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                         >
                             <div className="w-5 h-5 mr-3 bg-green-500 rounded flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">N</span>
+                                <span className="text-white text-xs font-bold">
+                                    N
+                                </span>
                             </div>
                             네이버로 계속하기
                         </button>

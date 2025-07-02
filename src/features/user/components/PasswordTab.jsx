@@ -1,107 +1,161 @@
 import React, { useState } from 'react';
-import { User, Lock, Calendar, Eye, EyeOff, Camera, Phone, Mail, MapPin, Edit2, Save, X } from 'lucide-react';
+import { AccountForm } from '../../auth/services/AccountForm';
+import { EditProfileForm } from '../components/ProfileForm';
+import { passwordInputType } from '../types/passwordInputType';
 
 export function PasswordTab({ userId, onChangePassword }) {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [isChanging, setIsChanging] = useState(false);
+    const [errors, setErrors] = useState({});
+    const [changeError, setChangeError] = useState('');
+    const [changeSuccess, setChangeSuccess] = useState('');
     const [passwords, setPasswords] = useState({
-        current: '',
-        new: '',
-        confirm: '',
+        curPwd: '',
+        newPwd: '',
+        confirmPwd: '',
     });
 
     const handlePasswordChange = async () => {
-        if (passwords.new !== passwords.confirm) {
-            alert('새 비밀번호가 일치하지 않습니다.');
-            return;
-        }
-
-        if (passwords.new.length < 8) {
-            alert('비밀번호는 8자 이상이어야 합니다.');
-            return;
-        }
-
         setIsChanging(true);
+        setChangeError('');
+        setChangeSuccess('');
+
         try {
-            await onChangePassword({
+            const result = await onChangePassword({
                 userId,
-                currentPassword: passwords.current,
-                newPassword: passwords.new,
+                currentPassword: passwords.curPwd,
+                newPassword: passwords.newPwd,
             });
-            alert('비밀번호가 성공적으로 변경되었습니다.');
-            setPasswords({ current: '', new: '', confirm: '' });
+
+            setPasswords({ curPwd: '', newPwd: '', confirmPwd: '' });
+
+            if (result.success) {
+                setChangeSuccess('비밀번호가 성공적으로 변경되었습니다.');
+            } else {
+                setChangeError(
+                    '비밀번호 변경에 실패했습니다.\n 현재 비밀번호가 올바른지 확인해주세요.',
+                );
+            }
         } catch (error) {
-            alert('비밀번호 변경에 실패했습니다.');
+            setChangeError(
+                '비밀번호 변경에 실패했습니다.\n 현재 비밀번호가 올바른지 확인해주세요.',
+            );
         } finally {
             setIsChanging(false);
         }
     };
 
+    const handleInputChange = (field) => (e) => {
+        let value = e.target.value;
+
+        const updatedData = {
+            ...passwords,
+            [field]: value,
+        };
+
+        setPasswords(updatedData);
+
+        if (field != 'confirmPwd') {
+            const error = AccountForm.validateField(
+                'password',
+                value,
+                passwords,
+            );
+            setErrors((prev) => ({
+                ...prev,
+                [field]: error,
+            }));
+        }
+
+        if (field === 'confirmPwd') {
+            const confirmError =
+                value !== passwords.newPwd
+                    ? '비밀번호가 일치하지 않습니다.'
+                    : '';
+            setErrors((prev) => ({
+                ...prev,
+                confirmPwd: confirmError,
+            }));
+        }
+
+        if (field === 'newPwd') {
+            const confirmError =
+                passwords.confirmPwd && passwords.confirmPwd !== value
+                    ? '비밀번호가 일치하지 않습니다.'
+                    : '';
+            setErrors((prev) => ({
+                ...prev,
+                confirmPwd: confirmError,
+            }));
+        }
+    };
+
+    const isInvalid =
+        !passwords.curPwd ||
+        !passwords.newPwd ||
+        !passwords.confirmPwd ||
+        passwords.newPwd !== passwords.confirmPwd ||
+        errors.curPwd ||
+        errors.newPwd ||
+        errors.confirmPwd;
+
     return (
         <div className="max-w-md mx-auto">
             <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold mb-2">비밀번호 변경</h3>
-                <p className="text-gray-400">보안을 위해 주기적으로 비밀번호를 변경해주세요</p>
+                <p className="text-gray-400">
+                    보안을 위해 주기적으로 비밀번호를 변경해주세요
+                </p>
             </div>
 
             <div className="space-y-6">
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">현재 비밀번호</label>
-                    <div className="relative">
-                        <input
-                            type={showCurrentPassword ? 'text' : 'password'}
-                            value={passwords.current}
-                            onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white pr-12 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
+                {passwordInputType.map(
+                    ({ name, type, icon, labelName, toggle }) => (
+                        <EditProfileForm
+                            key={name}
+                            icon={icon}
+                            name={name}
+                            labelName={labelName}
+                            type={type}
+                            value={passwords[name]}
+                            onChange={handleInputChange(name)}
+                            showToggle={toggle}
+                            showValue={
+                                name === 'curPwd'
+                                    ? showCurrentPassword
+                                    : name === 'newPwd'
+                                      ? showNewPassword
+                                      : false
+                            }
+                            onToggle={() =>
+                                name === 'curPwd'
+                                    ? setShowCurrentPassword((prev) => !prev)
+                                    : name === 'newPwd'
+                                      ? setShowNewPassword((prev) => !prev)
+                                      : null
+                            }
+                            error={errors[name]}
                         />
-                        <button
-                            type="button"
-                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                        >
-                            {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
-                    </div>
-                </div>
+                    ),
+                )}
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">새 비밀번호</label>
-                    <div className="relative">
-                        <input
-                            type={showNewPassword ? 'text' : 'password'}
-                            value={passwords.new}
-                            onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white pr-12 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                        >
-                            {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">8자 이상 입력해주세요</p>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">새 비밀번호 확인</label>
-                    <input
-                        type="password"
-                        value={passwords.confirm}
-                        onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                    />
-                </div>
+                {/* 메시지 표시 영역 */}
+                {changeError && (
+                    <p className="text-red-500 text-sm text-center">
+                        {changeError}
+                    </p>
+                )}
+                {changeSuccess && (
+                    <p className="text-green-600 text-sm text-center">
+                        {changeSuccess}
+                    </p>
+                )}
 
                 <button
                     type="button"
                     onClick={handlePasswordChange}
-                    disabled={isChanging || !passwords.current || !passwords.new || !passwords.confirm}
+                    disabled={isChanging || isInvalid}
                     className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                     {isChanging ? (

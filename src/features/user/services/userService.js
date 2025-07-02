@@ -17,53 +17,71 @@ export const userService = {
             });
             return { success: true, data: response.data };
         } catch (error) {
-            return { success: false, error: error.message || '회원 정보 수정 중 오류가 발생했습니다.' };
+            return {
+                success: false,
+                error:
+                    error.message || '회원 정보 수정 중 오류가 발생했습니다.',
+            };
         }
     },
 
     changePassword: async (passwordData) => {
-        // 실제로는 fetch('/api/user/password', { method: 'PUT', body: JSON.stringify(passwordData) })
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve({ success: true, message: '비밀번호가 변경되었습니다.' });
-            }, 500);
-        });
+        try {
+            await apiClient.post('/mypage/changePwd', passwordData, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            });
+            return { success: true };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message || '비밀번호 변경 중 오류가 발생했습니다.',
+            };
+        }
     },
 
     getBookingHistory: async (userId) => {
-        // 실제로는 fetch(`/api/user/${userId}/bookings`)
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve([
-                    {
-                        id: 1,
-                        eventName: 'BTS Concert 2025',
-                        date: '2025-07-15',
-                        venue: 'Olympic Stadium',
-                        seats: 'VIP-A12, A13',
-                        status: 'confirmed',
-                        price: '₩180,000',
-                    },
-                    {
-                        id: 2,
-                        eventName: 'Hamilton Musical',
-                        date: '2025-06-20',
-                        venue: 'Seoul Arts Center',
-                        seats: 'R석 3열 15-16번',
-                        status: 'completed',
-                        price: '₩150,000',
-                    },
-                    {
-                        id: 3,
-                        eventName: 'Ed Sheeran Live',
-                        date: '2025-08-10',
-                        venue: 'KSPO Dome',
-                        seats: 'Standing A',
-                        status: 'confirmed',
-                        price: '₩120,000',
-                    },
-                ]);
-            }, 800);
-        });
+        try {
+            const response = await apiClient.get('/mypage/booking', {
+                params: { userId },
+            });
+            if (response.data) {
+                return response.data;
+            }
+        } catch (error) {
+            throw new Error(
+                error.message || '예매 내역을 불러오는 중 오류가 발생했습니다.',
+            );
+        }
+    },
+
+    getBookingDetail: async (bookingNumber) => {
+        try {
+            const response = await apiClient.get(
+                `/mypage/bookingDetail/${bookingNumber}`,
+            );
+            if (response.data) {
+                return response.data;
+            }
+        } catch (error) {
+            throw new Error(
+                error.message ||
+                    '예매 상세 내역을 불러오는 중 오류가 발생했습니다.',
+            );
+        }
+    },
+
+    cancelBooking: async (bookingId) => {
+        try {
+            const response = await apiClient.delete(
+                `/mypage/bookingDetail/cancel/${bookingId}`,
+            );
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.message || '예매 취소 중 오류가 발생했습니다.',
+            );
+        }
     },
 };

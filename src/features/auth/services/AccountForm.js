@@ -2,7 +2,8 @@
 const REGEX = {
     email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
     username: /^[a-z0-9]+$/,
-    password: /^(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_+=-])[A-Za-z\d!@#$%^&*()_+=-]{8,}$/,
+    password:
+        /^(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_+=-])[A-Za-z\d!@#$%^&*()_+=-]{8,}$/,
     phone: /^01[016789]-\d{3,4}-\d{4}$/,
     nickname: /^[가-힣a-zA-Z0-9]{1,20}$/,
 };
@@ -12,7 +13,8 @@ const MESSAGES = {
     email: '올바른 이메일 형식이 아닙니다.',
     usernameLength: '아이디는 4자 이상 20자 이하로 입력해주세요.',
     username: '아이디는 영어 소문자와 숫자만 사용 가능합니다.',
-    password: '비밀번호는 최소 8자 이상이며, 소문자, 숫자, 특수문자를 포함해야 합니다.',
+    password:
+        '비밀번호는 최소 8자 이상이며, 소문자, 숫자, 특수문자를 포함해야 합니다.',
     confirmPassword: '비밀번호가 일치하지 않습니다.',
     nameLength: '이름은 100자 이하로 입력해주세요.',
     nicknameLength: '닉네임은 20자 이하로 입력해주세요.',
@@ -28,7 +30,8 @@ const validators = {
     },
     username: (value) => {
         if (!value.trim()) return MESSAGES.required('사용자 아이디');
-        if (value.length < 4 || value.length > 20) return MESSAGES.usernameLength;
+        if (value.length < 4 || value.length > 20)
+            return MESSAGES.usernameLength;
         if (!REGEX.username.test(value)) return MESSAGES.username;
     },
     password: (value) => {
@@ -78,8 +81,10 @@ const formatPhoneNumber = (value) => {
     const numbers = value.replace(/[^\d]/g, '');
 
     if (numbers.length <= 3) return numbers;
-    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
-    if (numbers.length <= 11) return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
+    if (numbers.length <= 7)
+        return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    if (numbers.length <= 11)
+        return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
     return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
 };
 
