@@ -20,12 +20,6 @@ function WaitingPage() {
     const isFirstMount = useRef(true);
 
     useEffect(() => {
-        // 오직 개발 모드에서만, 첫 번째 mount를 스킵
-        if (isDev && isFirstMount.current) {
-            isFirstMount.current = false;
-            return;
-        }
-
         if (!user) {
             setStatusMessage('로그인 정보가 없습니다. 다시 시도해주세요.');
             return;
@@ -33,6 +27,11 @@ function WaitingPage() {
 
         if (!WS_URL) {
             setStatusMessage('WebSocket 설정이 필요합니다.');
+            return;
+        }
+
+        // 이미 연결이 있는 경우 재연결 방지
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
             return;
         }
 
@@ -48,7 +47,15 @@ function WaitingPage() {
 
         ws.onmessage = (event) => {
             console.log('서버로부터 메시지 수신:', event.data);
-            const message = JSON.parse(event.data);
+
+            let message;
+            try {
+                message = JSON.parse(event.data);
+            } catch (error) {
+                console.error('메시지 파싱 실패:', error);
+                setStatusMessage('서버 메시지 형식 오류가 발생했습니다.');
+                return;
+            }
 
             // 서버(RedisMessageSubscriber)에서 보낸 "ADMIT" 타입 메시지 처리
             if (message.type === 'ADMIT' && message.accessKey) {
