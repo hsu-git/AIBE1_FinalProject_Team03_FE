@@ -86,7 +86,7 @@ function WaitingPage() {
                         setStatusMessage(
                             `대기열 연결 완료. 현재 순번: ${statusData.rank || '확인 중'}번`,
                         );
-                        setRetryDelay(2000);
+                        setRetryDelay(5000);
                     }
                 } catch (error) {
                     console.error(
