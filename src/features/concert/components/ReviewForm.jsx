@@ -290,8 +290,7 @@ const ReviewForm = ({
                 // 부모 컴포넌트의 제출 함수 호출
                 if (onSubmit && typeof onSubmit === 'function') {
                     if (mode === 'edit' && initialData?.id) {
-                        // 수정 모드: reviewId와 함께 전달
-                        await onSubmit(initialData.id, formData);
+                        await onSubmit(formData);
                     } else {
                         // 작성 모드: 폼 데이터만 전달
                         await onSubmit(formData);
@@ -575,7 +574,19 @@ const ReviewForm = ({
         <div className={`review-form ${className}`} style={containerStyles}>
             {/* 폼 제목 */}
             <h2 style={titleStyles}>
-                {mode === 'edit' ? '📝 리뷰 수정' : '✍️ 리뷰 작성'}
+                {mode === 'edit' ? <>✨ 관람평 수정</> : <>✍️ 관람평 작성</>}
+                <span
+                    style={{
+                        fontSize: '11px',
+                        backgroundColor: '#eff6ff',
+                        color: '#92400e',
+                        padding: '2px 6px',
+                        borderRadius: '10px',
+                        fontWeight: 'normal',
+                    }}
+                >
+                    관람 후
+                </span>
             </h2>
 
             <form onSubmit={handleSubmit}>

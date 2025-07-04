@@ -58,6 +58,9 @@ const ExpectationList = ({
     currentUserId, // 현재 사용자 ID
     onEditClick, // 수정 버튼 클릭 핸들러
     onDeleteClick, // 삭제 버튼 클릭 핸들러
+    onCreateExpectation,
+    onEditExpectation,
+    onDeleteExpectation,
 
     // ===== UI 제어 props =====
     showPagination = true, // 페이지네이션 표시 여부
@@ -448,8 +451,31 @@ const ExpectationList = ({
                             관람 전
                         </span>
                     </div>
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}
+                    >
+                        {currentUserId && (
+                            <button
+                                onClick={onCreateExpectation}
+                                style={{
+                                    padding: '6px 12px',
+                                    backgroundColor: '#f59e0b',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                ✨ 기대평 작성
+                            </button>
+                        )}
+                    </div>
                 </div>
-
                 <div
                     style={{
                         textAlign: 'center',
@@ -522,25 +548,50 @@ const ExpectationList = ({
                     </span>
                 </div>
 
-                {/* 새로고침 버튼 */}
-                {showRefreshButton && (
-                    <button
-                        onClick={handleRefresh}
-                        style={{
-                            padding: '4px 8px',
-                            backgroundColor: 'transparent',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            color: '#6b7280',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        🔄
-                    </button>
-                )}
-            </div>
+                {/* 👇 수정된 부분: 작성 버튼과 새로고침 버튼을 하나의 div에 묶음 */}
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                    }}
+                >
+                    {currentUserId && (
+                        <button
+                            onClick={onCreateExpectation}
+                            style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#f59e0b', // 노란색 테마
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            ✨ 기대평 작성
+                        </button>
+                    )}
 
+                    {/* 새로고침 버튼 */}
+                    {showRefreshButton && (
+                        <button
+                            onClick={handleRefresh}
+                            style={{
+                                padding: '4px 8px',
+                                backgroundColor: 'transparent',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                color: '#6b7280',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            🔄
+                        </button>
+                    )}
+                </div>
+            </div>
             {/* 기대평 목록 */}
             <div>
                 {expectations.map((expectation) => (
@@ -654,18 +705,43 @@ const ExpectationList = ({
                         </div>
 
                         {/* 기대평 텍스트 */}
-                        <p
-                            style={{
-                                fontSize: compact ? '13px' : '14px',
-                                color: '#6b7280',
-                                lineHeight: '1.5',
-                                margin: '0',
-                            }}
-                        >
-                            {expectation.comment.length > 150 && !compact
-                                ? expectation.comment.substring(0, 150) + '...'
-                                : expectation.comment}
-                        </p>
+                        <div>
+                            <p
+                                style={{
+                                    fontSize: compact ? '13px' : '14px',
+                                    color: '#6b7280',
+                                    lineHeight: '1.5',
+                                    margin: '0',
+                                }}
+                            >
+                                {expectation.comment.length > 100 &&
+                                !compact &&
+                                !expandedItems?.has(expectation.id)
+                                    ? expectation.comment.substring(0, 100) +
+                                      '...'
+                                    : expectation.comment}
+                            </p>
+                            {expectation.comment.length > 100 && !compact && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onExpectationClick(expectation);
+                                    }}
+                                    style={{
+                                        color: '#3b82f6',
+                                        fontSize: '12px',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        marginTop: '4px',
+                                    }}
+                                >
+                                    {expandedItems?.has(expectation.id)
+                                        ? '접기'
+                                        : '더보기'}
+                                </button>
+                            )}
+                        </div>
                         {/* 수정/삭제 버튼 (작성자만) */}
                         {currentUserId === expectation.userId && (
                             <div
@@ -679,7 +755,7 @@ const ExpectationList = ({
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        onEditClick?.(expectation);
+                                        onEditExpectation?.(expectation);
                                     }}
                                     style={{
                                         padding: '4px 8px',
@@ -696,7 +772,7 @@ const ExpectationList = ({
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        onDeleteClick?.(expectation);
+                                        onDeleteExpectation?.(expectation.id);
                                     }}
                                     style={{
                                         padding: '4px 8px',

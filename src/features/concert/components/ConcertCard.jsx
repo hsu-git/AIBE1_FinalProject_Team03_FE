@@ -276,18 +276,18 @@ const ConcertCard = ({
             aria-label={`${concert.title} - ${concert.artist} 콘서트 정보`}
         >
             {/* 포스터 이미지 섹션 */}
-            {concert.posterImageUrl && (
-                <div style={{ marginBottom: '12px' }}>
-                    <img
-                        src={concert.posterImageUrl}
-                        alt={`${concert.title} 포스터`}
-                        style={imageStyles}
-                        onError={handleImageError}
-                        // 이미지 지연 로딩 (성능 최적화)
-                        loading="lazy"
-                    />
-                </div>
-            )}
+            <div style={{ marginBottom: '12px' }}>
+                <img
+                    src={
+                        concert.posterImageUrl ||
+                        '/images/basic-poster-image.png'
+                    }
+                    alt={`${concert.title} 포스터`}
+                    style={imageStyles}
+                    onError={handleImageError}
+                    loading="lazy"
+                />
+            </div>
 
             {/* 콘서트 기본 정보 섹션 */}
             <div style={{ marginBottom: '12px' }}>

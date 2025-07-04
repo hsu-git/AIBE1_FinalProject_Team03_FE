@@ -269,9 +269,8 @@ const ExpectationForm = ({
             event.preventDefault();
             // 모든 필드를 터치 상태로 설정 (에러 표시용)
             setTouched({
-                title: true,
-                description: true,
-                rating: true,
+                comment: true,
+                expectationRating: true,
                 userNickname: true,
             });
             // 전체 폼 유효성 검증
@@ -285,13 +284,16 @@ const ExpectationForm = ({
             try {
                 // 부모 컴포넌트의 제출 함수 호출
                 if (onSubmit && typeof onSubmit === 'function') {
-                    // 🔧 수정: 항상 formData만 전달하도록 변경
-                    // 수정/작성 모드 구분은 부모 컴포넌트에서 처리
-                    await onSubmit(formData);
+                    if (mode === 'edit' && initialData?.id) {
+                        await onSubmit(formData);
+                    } else {
+                        // 작성 모드: 폼 데이터만 전달
+                        await onSubmit(formData);
+                    }
                 }
             } catch (error) {
                 // 에러는 상위 컴포넌트에서 처리
-                console.error('리뷰 제출 실패:', error);
+                console.error('기대평 제출 실패:', error);
             }
         },
         [formData, disabled, loading, validateForm, onSubmit],

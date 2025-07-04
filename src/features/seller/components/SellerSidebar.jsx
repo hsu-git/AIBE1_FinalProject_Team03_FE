@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../../context/AuthContext';
 
 // Lucide React 사용 보류
@@ -8,19 +8,25 @@ import { AuthContext } from '../../../context/AuthContext';
 const SellerSidebar = () => {
     const { user } = useContext(AuthContext); // AuthContext에서 user 정보 가져오기
     const [isConcertMenuOpen, setIsConcertMenuOpen] = useState(false); // 콘서트 관리 토글 상태
+    const location = useLocation(); // 현재 라우트 정보 가져오기
 
-    // 판매자 권한 확인 (백엔드에서 'ROLE_SELLER'로 넘어올 것을 가정하고 수정)
+    // 판매자 권한 확인
+    const isAdmin =
+        user &&
+        (user.role === 'ROLE_ADMIN' ||
+            (user.roles && user.roles.includes('ROLE_ADMIN')));
     const isSeller =
         user &&
         (user.role === 'ROLE_SELLER' ||
             (user.roles && user.roles.includes('ROLE_SELLER')));
 
-    // 판매자가 아닌 일반 유저 (로그인된 상태에서)
-    const isNormalUser = user && !isSeller;
+    // 판매자가 아닌 일반 유저 (로그인된 상태에서, 관리자 제외) - 이 변수는 현재 코드에서 직접 사용되지 않지만, 필요 시 활용
+    // const isNormalUser = user && !isSeller && !isAdmin;
 
-    // 디버깅 완료 후 제거 또는 개발 모드에서만 보이도록 처리할 예정
-    // console.log('SellerSidebar: user data in sidebar:', user);
-    // console.log('SellerSidebar: isSeller (computed):', isSeller);
+    // '판매자 권한 상태' 탭의 동적 텍스트 결정
+    const sellerStatusTabText = location.pathname.startsWith('/seller/apply')
+        ? '판매자 권한 신청' // /seller/apply 페이지에 있을 때
+        : '판매자 권한 상태'; // 그 외 (주로 /seller/status 페이지에 있을 때)
 
     // 콘서트 관리 메뉴 토글 함수
     const toggleConcertMenu = () => {
@@ -51,52 +57,37 @@ const SellerSidebar = () => {
                         alt="홈 아이콘"
                         className="w-6 h-6"
                     />
-                    홈 (판매자)
+                    {/* 관리자는 SellerLayout에 접근 불가하므로 isSeller 여부만 체크 */}
+                    {isSeller ? '홈 (판매자)' : '홈 (일반 유저)'}
                 </NavLink>
 
-                {/* 1. 일반 유저에게만 보이는 '판매자 권한 신청' 탭 */}
-                {isNormalUser && (
+                {/* '판매자 권한 상태' 탭 (일반 유저와 판매자 유저 모두에게 보임) */}
+                {/* 관리자는 App.jsx에서 리다이렉트되므로 여기서는 !isAdmin 조건만 체크하면 됨 */}
+                {user && !isAdmin && (
                     <NavLink
-                        to="/seller/apply"
+                        to="/seller/status" // 이 링크는 여전히 /seller/status로 이동
                         className={({ isActive }) =>
                             `flex items-center gap-3 px-3 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
-                                isActive ? 'bg-[#243447]' : 'hover:bg-[#243447]'
+                                // 현재 경로가 /seller/status이거나 /seller/apply일 때 활성화 (두 페이지 모두 이 탭과 관련됨)
+                                isActive ||
+                                location.pathname.startsWith('/seller/apply')
+                                    ? 'bg-[#243447]'
+                                    : 'hover:bg-[#243447]'
                             }`
                         }
                     >
-                        {/* vector-02.svg 아이콘 사용 (public 폴더에 복사했음을 가정) */}
                         <img
-                            src="/vector-02.svg"
-                            alt="판매자 권한 신청"
+                            src="/vector-03.svg"
+                            alt={sellerStatusTabText}
                             className="w-6 h-6"
                         />
-                        판매자 권한 신청
+                        {sellerStatusTabText} {/* 동적 텍스트 적용 */}
                     </NavLink>
                 )}
 
-                {/* 2. 판매자 유저에게만 보이는 탭들 */}
+                {/* 판매자 유저에게만 보이는 탭들 */}
                 {isSeller && (
                     <>
-                        {/* 판매자 권한 상태 탭 */}
-                        <NavLink
-                            to="/seller/status"
-                            className={({ isActive }) =>
-                                `flex items-center gap-3 px-3 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
-                                    isActive
-                                        ? 'bg-[#243447]'
-                                        : 'hover:bg-[#243447]'
-                                }`
-                            }
-                        >
-                            {/* vector-03.svg 아이콘 사용 */}
-                            <img
-                                src="/vector-03.svg"
-                                alt="판매자 권한 상태"
-                                className="w-6 h-6"
-                            />
-                            판매자 권한 상태
-                        </NavLink>
-
                         {/* 콘서트 관리 토글 메뉴 */}
                         <div className="flex flex-col">
                             <button

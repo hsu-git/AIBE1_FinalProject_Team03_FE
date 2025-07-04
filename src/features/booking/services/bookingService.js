@@ -58,8 +58,3 @@ export async function checkQueueStatus(concertId) {
     );
     return response.data; // QueueStatusDto 반환
 }
-
-// (Toss Payments SDK를 React에서 직접 사용하는 경우를 대비하여)
-// 결제 성공/실패 콜백 리다이렉트는 백엔드 PaymentApiController에서 처리하므로,
-// 프론트엔드에서는 직접적으로 PaymentApiController의 /success, /fail 엔드포인트 호출 함수를 만들 필요는 없습니다.
-// 다만, 결과 페이지에서 orderId 등을 받아 처리하는 로직은 필요합니다.

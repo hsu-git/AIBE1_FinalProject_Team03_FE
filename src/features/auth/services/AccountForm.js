@@ -22,6 +22,10 @@ const MESSAGES = {
     phone: '올바른 전화번호 형식이 아닙니다. 예: 010-1234-5678',
 };
 
+// 파일 업로드
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 // 2. 각 필드별 유효성 검사 함수 분리
 const validators = {
     email: (value) => {
@@ -88,8 +92,21 @@ const formatPhoneNumber = (value) => {
     return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
 };
 
+const validateImageFile = (file) => {
+    // 파일 크기 제한
+    if (file.size > MAX_FILE_SIZE) {
+        return '파일 크기는 10MB를 초과할 수 없습니다.';
+    }
+
+    // 파일 타입 제한
+    if (!ALLOWED_TYPES.includes(file.type)) {
+        return '지원하지 않는 파일 형식입니다. (JPEG, PNG, WEBP 허용)';
+    }
+};
+
 export const AccountForm = {
     validateField,
     validateAllFields,
     formatPhoneNumber,
+    validateImageFile,
 };

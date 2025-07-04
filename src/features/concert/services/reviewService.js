@@ -1,5 +1,6 @@
 // src/features/concert/services/reviewService.js
 
+// 프로젝트 공통 API 클라이언트 import (SuccessResponse 자동 처리, 인터셉터 설정 완료)
 import apiClient from '../../../shared/utils/apiClient.js';
 
 /**

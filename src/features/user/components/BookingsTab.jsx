@@ -1,15 +1,17 @@
 import { useNavigate } from 'react-router-dom';
+import { BOOKING_STATUS } from '../services/bookingDetailService';
+import { formatPrice } from '../services/bookingDetailService';
 
 export function BookingsTab({ bookingHistory, isLoading }) {
     const navigate = useNavigate();
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'CONFIRMED':
+            case BOOKING_STATUS.CONFIRMED:
                 return 'bg-green-100 text-green-800';
-            case 'COMPLETED':
+            case BOOKING_STATUS.COMPLETED:
                 return 'bg-gray-100 text-gray-800';
-            case 'CANCELED':
+            case BOOKING_STATUS.CANCELED:
                 return 'bg-red-100 text-red-800';
             default:
                 return 'bg-blue-100 text-blue-800';
@@ -18,11 +20,11 @@ export function BookingsTab({ bookingHistory, isLoading }) {
 
     const getStatusText = (status) => {
         switch (status) {
-            case 'CONFIRMED':
+            case BOOKING_STATUS.CONFIRMED:
                 return '예매 확정';
-            case 'COMPLETED':
+            case BOOKING_STATUS.COMPLETED:
                 return '관람 완료';
-            case 'CANCELED':
+            case BOOKING_STATUS.CANCELED:
                 return '취소됨';
             default:
                 return '대기중';
@@ -121,7 +123,7 @@ export function BookingsTab({ bookingHistory, isLoading }) {
                                         결제금액
                                     </span>
                                     <span className="font-bold text-blue-400">
-                                        {booking.totalAmount}
+                                        {formatPrice(booking.totalAmount)}
                                     </span>
                                 </div>
                             </div>

@@ -58,6 +58,11 @@ const ReviewList = ({
     onPageChange, // 페이지 변경 핸들러 (useReviews.goToPage)
     onPageSizeChange, // 페이지 크기 변경 핸들러 (useReviews.changePageSize)
     onRefresh, // 새로고침 핸들러 (useReviews.refresh)
+    currentUserId, // 현재 사용자 ID
+    onCreateReview, // 작성 버튼 클릭 핸들러
+    onEditReview, // 수정 버튼 클릭 핸들러
+    onDeleteReview, // 삭제 버튼 클릭 핸들러
+    expandedItems, // 펼친 아이템들
 
     // ===== UI 제어 props =====
     showSortOptions = true, // 정렬 옵션 표시 여부
@@ -460,7 +465,22 @@ const ReviewList = ({
         return (
             <div className={`review-list ${className}`} style={containerStyles}>
                 <div style={headerStyles}>
-                    <div style={titleStyles}>📝 관람 후기 (0개)</div>
+                    <div style={titleStyles}>
+                        📝 관람 후기 (0개)
+                        <span
+                            style={{
+                                fontSize: '11px',
+                                backgroundColor: '#eff6ff',
+                                color: '#1e40af',
+                                padding: '2px 6px',
+                                borderRadius: '10px',
+                                fontWeight: 'normal',
+                                marginLeft: '8px',
+                            }}
+                        >
+                            관람 후
+                        </span>
+                    </div>
                 </div>
 
                 <div
@@ -502,6 +522,19 @@ const ReviewList = ({
             <div style={headerStyles}>
                 <div style={titleStyles}>
                     📝 관람 후기 ({totalElements.toLocaleString()}개)
+                    <span
+                        style={{
+                            fontSize: '11px',
+                            backgroundColor: '#eff6ff',
+                            color: '#1e40af',
+                            padding: '2px 6px',
+                            borderRadius: '10px',
+                            fontWeight: 'normal',
+                            marginLeft: '8px',
+                        }}
+                    >
+                        관람 후
+                    </span>
                 </div>
 
                 <div
@@ -511,6 +544,22 @@ const ReviewList = ({
                         gap: '12px',
                     }}
                 >
+                    {currentUserId && (
+                        <button
+                            onClick={onCreateReview}
+                            style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#3b82f6',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            ✍️ 리뷰 작성
+                        </button>
+                    )}
                     {/* 정렬 옵션 */}
                     {showSortOptions && (
                         <div style={sortContainerStyles}>
@@ -649,18 +698,88 @@ const ReviewList = ({
                         </h4>
 
                         {/* 리뷰 내용 */}
-                        <p
-                            style={{
-                                fontSize: compact ? '13px' : '14px',
-                                color: '#6b7280',
-                                lineHeight: '1.5',
-                                margin: '0',
-                            }}
-                        >
-                            {review.description.length > 100 && !compact
-                                ? review.description.substring(0, 100) + '...'
-                                : review.description}
-                        </p>
+                        <div>
+                            <p
+                                style={{
+                                    fontSize: compact ? '13px' : '14px',
+                                    color: '#6b7280',
+                                    lineHeight: '1.5',
+                                    margin: '0',
+                                }}
+                            >
+                                {review.description.length > 100 &&
+                                !compact &&
+                                !expandedItems?.has(review.id)
+                                    ? review.description.substring(0, 100) +
+                                      '...'
+                                    : review.description}
+                            </p>
+                            {review.description.length > 100 && !compact && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onReviewClick(review);
+                                    }}
+                                    style={{
+                                        color: '#3b82f6',
+                                        fontSize: '12px',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        marginTop: '4px',
+                                    }}
+                                >
+                                    {expandedItems?.has(review.id)
+                                        ? '접기'
+                                        : '더보기'}
+                                </button>
+                            )}
+                        </div>
+                        {currentUserId && currentUserId === review.userId && (
+                            <div
+                                style={{
+                                    marginTop: '8px',
+                                    display: 'flex',
+                                    gap: '8px',
+                                    justifyContent: 'flex-end',
+                                }}
+                            >
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // 리뷰 클릭 이벤트 방지
+                                        onEditReview?.(review);
+                                    }}
+                                    style={{
+                                        padding: '4px 8px',
+                                        backgroundColor: '#3b82f6',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    ✏️ 수정
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // 리뷰 클릭 이벤트 방지
+                                        onDeleteReview?.(review.id);
+                                    }}
+                                    style={{
+                                        padding: '4px 8px',
+                                        backgroundColor: '#ef4444',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    🗑️ 삭제
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -727,30 +846,19 @@ const ReviewList = ({
                     </button>
                 </div>
             )}
-
-            {/* 페이지 크기 선택 */}
-            {showPagination && totalElements > 10 && (
+            {!compact && totalElements > 0 && (
                 <div
                     style={{
-                        textAlign: 'center',
-                        marginTop: '12px',
+                        marginTop: '16px',
+                        padding: '12px',
+                        backgroundColor: '#eff6ff', // 파란색 배경
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        color: '#1e40af',
                     }}
                 >
-                    <select
-                        value={pageSize}
-                        onChange={handlePageSizeChange}
-                        style={{
-                            padding: '4px 8px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            backgroundColor: '#ffffff',
-                        }}
-                    >
-                        <option value={10}>10개씩 보기</option>
-                        <option value={20}>20개씩 보기</option>
-                        <option value={50}>50개씩 보기</option>
-                    </select>
+                    💡 작성하신 리뷰는 다른 관람객들에게 큰 도움이 됩니다.
+                    정직하고 자세한 후기를 작성해주세요!
                 </div>
             )}
         </div>

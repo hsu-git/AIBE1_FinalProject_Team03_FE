@@ -541,17 +541,18 @@ const ConcertDetail = ({
                 }}
             >
                 {/* 포스터 이미지 */}
-                {concert.posterImageUrl && (
-                    <div style={{ flex: 'none' }}>
-                        <img
-                            src={concert.posterImageUrl}
-                            alt={`${concert.title} 포스터`}
-                            style={posterStyles}
-                            onError={handleImageError}
-                            loading="lazy"
-                        />
-                    </div>
-                )}
+                <div style={{ flex: 'none' }}>
+                    <img
+                        src={
+                            concert.posterImageUrl ||
+                            '/images/basic-poster-image.png'
+                        }
+                        alt={`${concert.title} 포스터`}
+                        style={posterStyles}
+                        onError={handleImageError}
+                        loading="lazy"
+                    />
+                </div>
 
                 {/* 기본 정보 */}
                 <div style={{ flex: 1 }}>

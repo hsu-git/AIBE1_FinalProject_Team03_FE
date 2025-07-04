@@ -24,11 +24,8 @@ export default function BookingDetail() {
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [copiedBookingNumber, setCopiedBookingNumber] = useState(false);
     const [notification, setNotification] = useState(null);
-
-    // 공연까지 남은 시간 계산
     const [timeUntilConcert, setTimeUntilConcert] = useState('');
 
-    // 예매 정보 로드
     useEffect(() => {
         const loadBookingDetail = async () => {
             setIsLoading(true);
@@ -44,13 +41,11 @@ export default function BookingDetail() {
                 setIsLoading(false);
             }
         };
-
         loadBookingDetail();
     }, [bookingNumber]);
 
     useEffect(() => {
         if (!bookingDetail) return;
-
         const updateTime = () => {
             const result = calculateTimeUntilConcert(
                 bookingDetail.concertDate,
@@ -58,10 +53,8 @@ export default function BookingDetail() {
             );
             setTimeUntilConcert(result);
         };
-
         updateTime();
-        const interval = setInterval(updateTime, 60000); // 1분마다 업데이트
-
+        const interval = setInterval(updateTime, 60000);
         return () => clearInterval(interval);
     }, [bookingDetail]);
 
@@ -69,24 +62,6 @@ export default function BookingDetail() {
         setNotification({ message, type });
         setTimeout(() => setNotification(null), 3000);
     };
-
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-                <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                </div>
-            </div>
-        );
-    }
-
-    if (!bookingDetail) {
-        return (
-            <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-                <div>예매 정보를 찾을 수 없습니다.</div>
-            </div>
-        );
-    }
 
     const handleBack = () => {
         navigate('/mypage/profile', { state: { from: 'bookingDetail' } });
@@ -101,12 +76,11 @@ export default function BookingDetail() {
                 NOTIFICATION_TYPE.SUCCESS,
             );
             setTimeout(() => setCopiedBookingNumber(false), 2000);
-        } catch (err) {
+        } catch {
             showNotification('복사에 실패했습니다.', NOTIFICATION_TYPE.ERROR);
         }
     };
 
-    // 예매 취소
     const handleCancelBooking = async () => {
         if (bookingDetail.bookingStatus === BOOKING_STATUS.CANCELED) {
             showNotification(
@@ -115,16 +89,11 @@ export default function BookingDetail() {
             );
             return;
         }
-
         setIsLoading(true);
         try {
-            const result = await userService.cancelBooking(
-                bookingDetail.bookingId,
-            );
-
+            await userService.cancelBooking(bookingDetail.bookingId);
             const updated = await userService.getBookingDetail(bookingNumber);
             setBookingDetail(updated);
-
             showNotification(
                 '예매가 취소되었습니다.',
                 NOTIFICATION_TYPE.SUCCESS,
@@ -149,10 +118,9 @@ export default function BookingDetail() {
             return;
         }
         showNotification(
-            '티켓을 다운로드하고 있습니다...',
-            NOTIFICATION_TYPE.INFO,
+            '티켓을 다운로드 기능은 구현 예정입니다.',
+            NOTIFICATION_TYPE.ERROR,
         );
-        // 실제 다운로드 로직
     };
 
     const handleShare = async () => {
@@ -160,9 +128,7 @@ export default function BookingDetail() {
             try {
                 await navigator.share({
                     title: bookingDetail.concertTitle,
-                    text: `${bookingDetail.concertTitle} 예매 완료!\n${formatDate(bookingDetail.concertDate)} ${
-                        bookingDetail.startTime
-                    }`,
+                    text: `${bookingDetail.concertTitle} 예매 완료!\n${formatDate(bookingDetail.concertDate)} ${bookingDetail.startTime}`,
                     url: window.location.href,
                 });
             } catch (err) {
@@ -184,106 +150,101 @@ export default function BookingDetail() {
     };
 
     const canCancelBooking =
-        bookingDetail.bookingStatus === BOOKING_STATUS.CONFIRMED &&
-        bookingDetail.paymentStatus === 'DONE';
-    const canDownloadTicket =
-        bookingDetail.bookingStatus === BOOKING_STATUS.CONFIRMED ||
-        bookingDetail.bookingStatus === BOOKING_STATUS.COMPLETED;
+        bookingDetail?.bookingStatus === BOOKING_STATUS.CONFIRMED &&
+        bookingDetail?.paymentStatus === 'DONE';
+    const canDownloadTicket = [
+        BOOKING_STATUS.CONFIRMED,
+        BOOKING_STATUS.COMPLETED,
+    ].includes(bookingDetail?.bookingStatus);
 
-    if (!isLoading && bookingDetail) {
+    if (isLoading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-                {/* 알림 */}
-                {notification && (
-                    <NotificationSection notification={notification} />
-                )}
+            <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+                로딩 중...
+            </div>
+        );
+    }
 
-                {/* 취소 확인 모달 */}
-                {showCancelConfirm && (
-                    <CancelConfirmModal
-                        isLoading={isLoading}
-                        concertTitle={bookingDetail.concertTitle}
-                        concertDate={bookingDetail.concertDate}
-                        onShowCancelConfirm={() => setShowCancelConfirm(false)}
-                        onCancelBooking={handleCancelBooking}
-                    />
-                )}
+    if (!bookingDetail) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+                예매 정보를 찾을 수 없습니다.
+            </div>
+        );
+    }
 
-                <div className="max-w-6xl mx-auto px-4 py-6">
-                    {/* 헤더 */}
-                    <div className="flex items-center justify-between mb-8">
+    return (
+        <div className="min-h-screen bg-gray-900 text-white">
+            {notification && (
+                <NotificationSection notification={notification} />
+            )}
+            {showCancelConfirm && (
+                <CancelConfirmModal
+                    isLoading={isLoading}
+                    concertTitle={bookingDetail.concertTitle}
+                    concertDate={bookingDetail.concertDate}
+                    onShowCancelConfirm={() => setShowCancelConfirm(false)}
+                    onCancelBooking={handleCancelBooking}
+                />
+            )}
+
+            <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-5">
+                    <button
+                        onClick={handleBack}
+                        className="bg-gray-600 text-white hover:text-blue-300 flex items-center space-x-2"
+                    >
+                        <ArrowLeft size={20} />
+                        <span className="text-sm sm:text-base font-medium">
+                            뒤로가기
+                        </span>
+                    </button>
+                    <div className="flex items-center space-x-2 text-sm text-right w-fit">
+                        <span className="text-gray-300 whitespace-nowrap">
+                            예매번호
+                        </span>
                         <button
-                            onClick={handleBack}
-                            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors group"
+                            onClick={handleCopyBookingNumber}
+                            className="flex items-center space-x-1 bg-gray-600 text-white hover:text-blue-400 px-3 py-2.5"
                         >
-                            <ArrowLeft
-                                size={20}
-                                className="group-hover:-translate-x-1 transition-transform"
-                            />
-                            <span>뒤로가기</span>
+                            <span className="font-mono text-base truncate max-w-[160px] sm:max-w-[220px]">
+                                {bookingDetail.bookingNumber}
+                            </span>
+                            {copiedBookingNumber ? (
+                                <Check size={18} className="text-green-400" />
+                            ) : (
+                                <Copy size={18} />
+                            )}
                         </button>
-
-                        <div className="text-right">
-                            <p className="text-sm text-gray-400">예매번호</p>
-                            <button
-                                onClick={handleCopyBookingNumber}
-                                className="flex items-center space-x-2 text-white hover:text-blue-400 transition-colors group"
-                            >
-                                <span className="font-mono text-lg">
-                                    {bookingDetail.bookingNumber}
-                                </span>
-                                {copiedBookingNumber ? (
-                                    <Check
-                                        size={18}
-                                        className="text-green-400"
-                                    />
-                                ) : (
-                                    <Copy
-                                        size={18}
-                                        className="group-hover:scale-110 transition-transform"
-                                    />
-                                )}
-                            </button>
-                        </div>
                     </div>
+                </div>
 
-                    {/* 메인 콘텐츠 */}
-                    <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-                        {/* 포스터 섹션 */}
+                {/* Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="lg:col-span-1">
                         <PosterSection
-                            posterImageUrl={bookingDetail.posterImageUrl}
-                            concertTitle={bookingDetail.concertTitle}
-                            artistName={bookingDetail.artistName}
-                            concertDate={bookingDetail.concertDate}
-                            startTime={bookingDetail.startTime}
-                            endTime={bookingDetail.endTime}
-                            bookingStatus={bookingDetail.bookingStatus}
+                            {...bookingDetail}
                             timeUntilConcert={timeUntilConcert}
                         />
-
-                        {/* 상세 정보 섹션 */}
-                        <div className="xl:col-span-3 space-y-6">
-                            {/* 공연장 정보 */}
+                    </div>
+                    <div className="lg:col-span-3 space-y-6">
+                        <div className="bg-gray-800 p-6 rounded-xl">
                             <VenueSection
                                 venueName={bookingDetail.venueName}
                                 venueAddress={bookingDetail.venueAddress}
                                 onGetDirections={handleGetDirections}
                             />
-
-                            {/* 좌석 정보 */}
+                        </div>
+                        <div className="bg-gray-800 p-6 rounded-xl">
                             <SeatInfoSection
                                 seatList={bookingDetail.seatList}
                             />
-
-                            {/* 결제 정보 */}
-                            <PaymentSection
-                                bookedAt={bookingDetail.bookedAt}
-                                totalAmount={bookingDetail.totalAmount}
-                                paymentStatus={bookingDetail.paymentStatus}
-                                paymentMethod={bookingDetail.paymentMethod}
-                            />
-
-                            {/* 액션 버튼들 */}
+                        </div>
+                        <div className="bg-gray-800 p-6 rounded-xl overflow-x-auto">
+                            <PaymentSection {...bookingDetail} />
+                        </div>
+                        <div className="bg-gray-800 p-6 rounded-xl">
                             <BookingActionSection
                                 canDownloadTicket={canDownloadTicket}
                                 canCancelBooking={canCancelBooking}
@@ -293,35 +254,31 @@ export default function BookingDetail() {
                                     setShowCancelConfirm(true)
                                 }
                             />
-
-                            <div className="mt-6 p-4 bg-gray-700 rounded-xl text-center">
-                                <div className="flex justify-center items-center space-x-2 mb-2">
-                                    <AlertCircle
-                                        size={20}
-                                        className="text-yellow-400"
-                                    />
-                                    <p className="text-sm font-medium text-yellow-400">
-                                        알림
-                                    </p>
-                                </div>
-                                <ul className="text-sm text-gray-300 space-y-1">
-                                    <li>
-                                        • 공연 당일 입장 시 신분증과 예매
-                                        확인서를 지참해 주세요
-                                    </li>
-                                    <li>
-                                        • 공연 시작 후에는 입장이 제한될 수
-                                        있습니다
-                                    </li>
-                                    <li>
-                                        • 취소는 공연 3일 전까지만 가능합니다
-                                    </li>
-                                </ul>
+                        </div>
+                        <div className="p-6 bg-gray-700 rounded-xl text-center">
+                            <div className="flex justify-center items-center space-x-2 mb-2">
+                                <AlertCircle
+                                    size={20}
+                                    className="text-yellow-400"
+                                />
+                                <p className="text-sm font-medium text-yellow-400">
+                                    알림
+                                </p>
                             </div>
+                            <ul className="text-sm text-gray-300 space-y-1">
+                                <li>
+                                    • 공연 당일 입장 시 신분증과 예매 확인서를
+                                    지참해 주세요
+                                </li>
+                                <li>
+                                    • 공연 시작 후에는 입장이 제한될 수 있습니다
+                                </li>
+                                <li>• 취소는 공연 3일 전까지만 가능합니다</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
             </div>
-        );
-    }
+        </div>
+    );
 }

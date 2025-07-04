@@ -3,12 +3,16 @@ import { Camera, Edit2, Save, X } from 'lucide-react';
 import { AccountForm } from '../../auth/services/AccountForm';
 import { EditProfileForm } from '../components/ProfileForm';
 import { profileInputType } from '../types/profileInputType';
+import { ProfileUploaderSection } from './BookingDetail/ProfileUploaderSection';
+import { NotificationSection } from '../components/BookingDetail/NotificationSection';
+import { NOTIFICATION_TYPE } from '../services/bookingDetailService';
 
 export function ProfileTab({ userInfo, onUpdateUserInfo, isLoading }) {
     const [isEditing, setIsEditing] = useState(false);
     const [editInfo, setEditInfo] = useState(userInfo || {});
     const [isSaving, setIsSaving] = useState(false);
     const [errors, setErrors] = useState({});
+    const [notification, setNotification] = useState(null);
 
     // userInfo가 변경되면 editInfo도 업데이트
     useEffect(() => {
@@ -16,6 +20,11 @@ export function ProfileTab({ userInfo, onUpdateUserInfo, isLoading }) {
             setEditInfo({ ...userInfo });
         }
     }, [userInfo]);
+
+    const showNotification = (message, type = NOTIFICATION_TYPE.INFO) => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
+    };
 
     const handleSaveProfile = async () => {
         setIsSaving(true);
@@ -29,12 +38,20 @@ export function ProfileTab({ userInfo, onUpdateUserInfo, isLoading }) {
         }
 
         try {
-            const updatePayload = {
-                nickname: editInfo.nickname,
-                phone: editInfo.phone,
-                address: editInfo.address,
-                profileImage: editInfo.profileImage || null,
-            };
+            const updatePayload = new FormData();
+            updatePayload.append('name', editInfo.name);
+            updatePayload.append('nickname', editInfo.nickname);
+            updatePayload.append('phone', editInfo.phone);
+            updatePayload.append('address', editInfo.address);
+
+            // 프로필 이미지 변경 검증
+            const isNewFileUploaded =
+                editInfo.profileImage instanceof File &&
+                editInfo.profilePreview;
+
+            if (isNewFileUploaded) {
+                updatePayload.append('profileImage', editInfo.profileImage);
+            }
 
             const result = await onUpdateUserInfo(updatePayload);
             if (result.success) {
@@ -80,6 +97,26 @@ export function ProfileTab({ userInfo, onUpdateUserInfo, isLoading }) {
         }));
     };
 
+    const handleProfileImage = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const errorMsg = AccountForm.validateImageFile(file);
+        if (errorMsg) {
+            showNotification(errorMsg, NOTIFICATION_TYPE.ERROR);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setEditInfo((prev) => ({
+                ...prev,
+                profileImage: file,
+                profilePreview: e.target.result, // base64 문자열
+            }));
+        };
+        reader.readAsDataURL(file);
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -100,33 +137,33 @@ export function ProfileTab({ userInfo, onUpdateUserInfo, isLoading }) {
 
     return (
         <div className="space-y-8">
+            {/* Error Message Banner */}
+            {notification && (
+                <NotificationSection notification={notification} />
+            )}
+
             {/* Profile Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-6">
-                    <div className="relative">
-                        <div className="w-24 h-24 bg-gradient-to-br from-pink-400 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-2xl font-bold text-white">
-                                {userInfo.name?.charAt(0) || 'U'}
-                            </span>
-                        </div>
-                        <button
-                            className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors"
-                            onClick={() =>
-                                alert(
-                                    '프로필 이미지 업로드 기능은 준비 중입니다.',
-                                )
-                            }
-                        >
-                            <Camera size={16} />
-                        </button>
-                    </div>
+                    <ProfileUploaderSection
+                        userInfo={editInfo}
+                        isEditing={isEditing}
+                        profilePreview={editInfo.profilePreview}
+                        onImageChange={handleProfileImage}
+                    />
                     <div>
                         <h3 className="text-2xl font-bold">{userInfo.name}</h3>
                         <p className="text-gray-400">@{userInfo.username}</p>
                     </div>
                 </div>
                 <button
-                    onClick={() => setIsEditing(!isEditing)}
+                    onClick={() => {
+                        if (isEditing) {
+                            handleCancelEdit(); // 수정 취소
+                        } else {
+                            setIsEditing(true); // 수정 시작
+                        }
+                    }}
                     disabled={isSaving}
                     className="flex items-center space-x-2 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >

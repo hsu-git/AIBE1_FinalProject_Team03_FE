@@ -1,5 +1,5 @@
 // src/pages/concert/ConcertDetailPage.jsx
-import React from 'react';
+import React, { useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 // 새로운 컴포넌트들 import
@@ -7,6 +7,10 @@ import ConcertDetail from '../../features/concert/components/ConcertDetail.jsx';
 import AISummary from '../../features/concert/components/AISummary.jsx';
 import ReviewList from '../../features/concert/components/ReviewList.jsx';
 import ExpectationList from '../../features/concert/components/ExpectationList.jsx';
+import Modal from '../../shared/components/ui/Modal.jsx';
+import ReviewForm from '../../features/concert/components/ReviewForm.jsx';
+import ExpectationForm from '../../features/concert/components/ExpectationForm.jsx';
+import { AuthContext } from '../../context/AuthContext.jsx';
 
 // 새로운 hooks import
 import { useConcertDetail } from '../../features/concert/hooks/useConcertDetail.js';
@@ -17,6 +21,13 @@ import { useBookingQueue } from '../../features/booking/hooks/useBookingQueue';
 function ConcertDetailPage() {
     const { concertId } = useParams();
     const navigate = useNavigate();
+    const { user: currentUser, isAuthenticated } = useContext(AuthContext);
+    const [showReviewForm, setShowReviewForm] = useState(false);
+    const [showExpectationForm, setShowExpectationForm] = useState(false);
+    const [editingReview, setEditingReview] = useState(null);
+    const [editingExpectation, setEditingExpectation] = useState(null);
+    const [expandedReviews, setExpandedReviews] = useState(new Set());
+    const [expandedExpectations, setExpandedExpectations] = useState(new Set());
 
     // 콘서트 상태별 설정 (함수 상단으로 이동)
     const statusConfig = {
@@ -78,6 +89,10 @@ function ConcertDetailPage() {
         changeSorting: changeReviewsSorting,
         sortBy: reviewsSortBy,
         sortDir: reviewsSortDir,
+        createReview,
+        updateReview,
+        deleteReview,
+        actionLoading,
     } = useReviews(parsedConcertId);
 
     // 기대평 목록 hook
@@ -89,20 +104,87 @@ function ConcertDetailPage() {
         totalPages: expectationsTotalPages,
         totalElements: expectationsTotal,
         goToPage: goToExpectationsPage,
+        createExpectation,
+        updateExpectation,
+        deleteExpectation,
+        actionLoading: expectationActionLoading,
     } = useExpectations(parsedConcertId);
 
     const { enterQueue, isEntering } = useBookingQueue(concertId);
 
     // 리뷰 클릭 핸들러 (상세보기나 수정 등)
     const handleReviewClick = (review) => {
-        console.log('리뷰 클릭:', review);
-        // 추후 리뷰 상세 모달이나 페이지로 이동 구현
+        setExpandedReviews((prev) => {
+            const newSet = new Set(prev);
+            if (newSet.has(review.id)) {
+                newSet.delete(review.id); // 이미 펼쳐져 있으면 접기
+            } else {
+                newSet.add(review.id); // 접혀있으면 펼치기
+            }
+            return newSet;
+        });
     };
 
     // 기대평 클릭 핸들러
     const handleExpectationClick = (expectation) => {
-        console.log('기대평 클릭:', expectation);
-        // 추후 기대평 상세 모달이나 수정 구현
+        setExpandedExpectations((prev) => {
+            const newSet = new Set(prev);
+            if (newSet.has(expectation.id)) {
+                newSet.delete(expectation.id);
+            } else {
+                newSet.add(expectation.id);
+            }
+            return newSet;
+        });
+    };
+
+    // 리뷰 작성/수정/삭제 핸들러들
+    const handleCreateReview = () => {
+        if (!currentUser || !currentUser.userId) {
+            alert('로그인이 필요합니다.');
+            navigate('/login');
+            return;
+        }
+        setShowReviewForm(true);
+    };
+    const handleEditReview = (review) => {
+        setEditingReview(review);
+        setShowReviewForm(true);
+    };
+    const handleDeleteReview = async (reviewId) => {
+        if (window.confirm('정말로 이 리뷰를 삭제하시겠습니까?')) {
+            try {
+                await deleteReview(reviewId);
+                alert('리뷰가 삭제되었습니다.');
+            } catch (error) {
+                alert('리뷰 삭제에 실패했습니다.');
+            }
+        }
+    };
+
+    // 기대평 작성/수정/삭제 핸들러들
+    const handleCreateExpectation = () => {
+        if (!currentUser || !currentUser.userId) {
+            alert('로그인이 필요합니다.');
+            navigate('/login');
+            return;
+        }
+        setShowExpectationForm(true);
+    };
+    const handleEditExpectation = (expectation) => {
+        setEditingExpectation(expectation);
+        setShowExpectationForm(true);
+    };
+    const handleDeleteExpectation = async (expectationId) => {
+        if (window.confirm('정말로 이 기대평을 삭제하시겠습니까?')) {
+            try {
+                await deleteExpectation(expectationId);
+                alert('기대평이 삭제되었습니다.');
+            } catch (error) {
+                console.error('기대평 삭제 실패:', error); // ✅ 에러 로깅 추가
+                alert('기대평 삭제에 실패했습니다.');
+            }
+        }
     };
 
     // 콘서트 정보 로딩 중이면 로딩 표시
@@ -185,6 +267,11 @@ function ConcertDetailPage() {
                             showSortOptions={true}
                             showPagination={true}
                             compact={false}
+                            expandedItems={expandedReviews}
+                            currentUserId={currentUser?.userId}
+                            onCreateReview={handleCreateReview}
+                            onEditReview={handleEditReview}
+                            onDeleteReview={handleDeleteReview}
                         />
                     </div>
 
@@ -201,6 +288,11 @@ function ConcertDetailPage() {
                             onPageChange={goToExpectationsPage}
                             showPagination={true}
                             compact={false}
+                            expandedItems={expandedExpectations}
+                            currentUserId={currentUser?.userId}
+                            onCreateExpectation={handleCreateExpectation}
+                            onEditExpectation={handleEditExpectation}
+                            onDeleteExpectation={handleDeleteExpectation}
                         />
                     </div>
                 </div>
@@ -252,6 +344,95 @@ function ConcertDetailPage() {
                     </div>
                 </div>
             </div>
+            {showReviewForm && (
+                <Modal
+                    isOpen={showReviewForm}
+                    onClose={() => {
+                        setShowReviewForm(false);
+                        setEditingReview(null);
+                    }}
+                    title={editingReview ? '리뷰 수정' : '리뷰 작성'}
+                >
+                    <ReviewForm
+                        mode={editingReview ? 'edit' : 'create'}
+                        initialData={editingReview}
+                        concertId={parsedConcertId}
+                        userId={currentUser?.userId}
+                        userNickname={
+                            currentUser?.nickname || currentUser?.username
+                        }
+                        onSubmit={async (reviewData) => {
+                            try {
+                                if (editingReview) {
+                                    await updateReview(
+                                        editingReview.id,
+                                        reviewData,
+                                    );
+                                } else {
+                                    await createReview(reviewData);
+                                }
+                                // 모달 닫기
+                                setShowReviewForm(false);
+                                setEditingReview(null);
+                                alert('리뷰가 저장되었습니다.');
+                            } catch (error) {
+                                console.error('리뷰 저장 실패:', error);
+                                alert('리뷰 저장에 실패했습니다.');
+                            }
+                        }}
+                        onCancel={() => {
+                            setShowReviewForm(false);
+                            setEditingReview(null);
+                        }}
+                        loading={actionLoading}
+                    />
+                </Modal>
+            )}
+
+            {showExpectationForm && (
+                <Modal
+                    isOpen={showExpectationForm}
+                    onClose={() => {
+                        setShowExpectationForm(false);
+                        setEditingExpectation(null);
+                    }}
+                    title={editingExpectation ? '기대평 수정' : '기대평 작성'}
+                >
+                    <ExpectationForm
+                        mode={editingExpectation ? 'edit' : 'create'}
+                        initialData={editingExpectation}
+                        concertId={parsedConcertId}
+                        userId={currentUser?.userId}
+                        userNickname={
+                            currentUser?.nickname || currentUser?.username
+                        }
+                        onSubmit={async (expectationData) => {
+                            try {
+                                if (editingExpectation) {
+                                    await updateExpectation(
+                                        editingExpectation.id,
+                                        expectationData,
+                                    );
+                                } else {
+                                    await createExpectation(expectationData);
+                                }
+                                // 모달 닫기
+                                setShowExpectationForm(false);
+                                setEditingExpectation(null);
+                                alert('기대평이 저장되었습니다.');
+                            } catch (error) {
+                                console.error('기대평 저장 실패:', error);
+                                alert('기대평 저장에 실패했습니다.');
+                            }
+                        }}
+                        onCancel={() => {
+                            setShowExpectationForm(false);
+                            setEditingExpectation(null);
+                        }}
+                        loading={expectationActionLoading}
+                    />
+                </Modal>
+            )}
         </div>
     );
 }

@@ -9,6 +9,7 @@ import MainLayout from './shared/components/layout/MainLayout';
 import AuthLayout from './shared/components/layout/AuthLayout';
 import PublicLayout from './shared/components/layout/PublicLayout.jsx';
 import SellerLayout from './shared/components/layout/SellerLayout';
+import AdminLayout from './shared/components/layout/AdminLayout';
 
 // Auth Context
 import { AuthContext } from './context/AuthContext';
@@ -28,6 +29,9 @@ import ConcertDetailPage from './pages/concert/ConcertDetailPage.jsx';
 import WaitingPage from './pages/booking/WaitingPage.jsx';
 import SeatSelectionPage from './pages/booking/SeatSelectionPage.jsx';
 
+//결제결과 페이지
+import { PaymentRoutes } from './features/payment/RoutePayment.jsx';
+
 // 판매자 페이지 (새로 만들거나 기존 페이지 재활용)
 import SellerHomePage from './pages/seller/SellerHomePage.jsx'; // 판매자 홈 페이지
 import SellerStatusPage from './pages/seller/SellerStatusPage.jsx'; // 판매자 상태 페이지
@@ -35,7 +39,12 @@ import SellerApplyPage from './pages/seller/SellerApplyPage.jsx'; // 판매자 �
 import ConcertRegisterPage from './pages/seller/ConcertRegisterPage.jsx'; // 콘서트 등록 페이지
 import SellerConcertManagementPage from './pages/seller/SellerConcertManagementPage.jsx'; // 판매자 콘서트
 
+// 관리자 페이지
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminSellerManagement from './pages/admin/AdminSellerManagement';
+
 import NotFoundPage from './pages/NotFoundPage.jsx';
+import UnauthorizedAccessPage from './pages/UnauthorizedAccessPage';
 
 // App 컴포넌트: 라우팅 정의 및 네비게이션 제공
 export default function App() {
@@ -44,6 +53,18 @@ export default function App() {
     if (loading) {
         return <div className="text-center py-20">로딩 중…</div>;
     }
+
+    // 역할 확인 헬퍼 변수
+    // user.role은 단일 문자열, user.roles는 배열일 수 있으므로 두 경우 모두 처리
+    const isAdmin =
+        user &&
+        (user.role === 'ROLE_ADMIN' ||
+            (user.roles && user.roles.includes('ROLE_ADMIN')));
+    const isSeller =
+        user &&
+        (user.role === 'ROLE_SELLER' ||
+            (user.roles && user.roles.includes('ROLE_SELLER')));
+    const isLoggedIn = !!user;
 
     return (
         <Routes>
@@ -65,6 +86,7 @@ export default function App() {
             <Route element={<PublicLayout />}>
                 <Route path="/" element={<HomePage />} />
                 <Route path="concerts" element={<ConcertListPage />} />
+                {PaymentRoutes()}
                 <Route
                     path="concerts/:concertId"
                     element={<ConcertDetailPage />}
@@ -94,7 +116,7 @@ export default function App() {
                     }
                 />
 
-                {/* 프로필 페이지 라우트는 이제 판매자 라우트 그룹 밖에 따로 둡니다. */}
+                {/* 프로필 페이지 라우트는 판매자 라우트 그룹 밖에 따로 위치 */}
                 <Route
                     path="/mypage/profile"
                     element={
@@ -116,49 +138,70 @@ export default function App() {
                     }
                 />
 
-                {/* 판매자 페이지 그룹 라우트: SellerLayout을 사용하여 사이드바를 포함시킵니다. */}
+                {/* 판매자 페이지 그룹 라우트: SellerLayout을 사용하여 사이드바를 포함 */}
                 <Route
                     path="/seller"
                     element={
-                        user ? (
-                            <SellerLayout />
+                        // 비로그인 상태이거나 관리자(ROLE_ADMIN)인 경우 UnauthorizedAccessPage로 리다이렉트
+                        // 관리자는 판매자 페이지에 접근 불가
+                        !isLoggedIn || isAdmin ? (
+                            <Navigate to="/unauthorized" replace />
                         ) : (
-                            <Navigate to="/login" replace />
-                        ) // 로그인하면 SellerLayout 렌더링
+                            <SellerLayout />
+                        )
                     }
                 >
                     {/* /seller 기본 경로: SellerHomePage (판매자 대시보드)로 연결 */}
                     <Route index element={<SellerHomePage />} />
-                    {/* 판매자 권한 신청 페이지 (모든 로그인 유저 접근 가능) */}
+                    {/* 판매자 권한 신청 페이지 (접근 로직은 SellerApplyPage 내부에서 처리) */}
                     <Route path="apply" element={<SellerApplyPage />} />
-                    {/* 판매자 권한 상태 페이지 (모든 로그인 유저 접근 가능하도록 이동) */}
+                    {/* 판매자 권한 상태 페이지 (모든 로그인 유저 접근 가능) */}
                     <Route path="status" element={<SellerStatusPage />} />
                     {/* 판매자 권한이 있는 경우에만 접근 가능한 페이지들 */}
                     <Route
                         element={
-                            user &&
-                            (user.role === 'ROLE_SELLER' ||
-                                (user.roles &&
-                                    user.roles.includes('ROLE_SELLER'))) ? (
+                            isSeller ? (
                                 <Outlet /> // 판매자 권한이 있다면 하위 라우트들을 Outlet에 렌더링
                             ) : (
-                                <Navigate to="/seller/apply" replace />
-                            ) // 권한 없으면 신청 페이지로 리다이렉트
+                                // 판매자 권한이 없는 로그인 유저 (일반 유저)가 콘서트 관리 탭에 접근 시 UnauthorizedAccessPage로 리다이렉트
+                                <Navigate to="/unauthorized" replace />
+                            )
                         }
                     >
                         <Route
                             path="concerts/register"
                             element={<ConcertRegisterPage />}
-                        />{' '}
-                        {/* 콘서트 등록 */}
+                        />
                         <Route
                             path="concerts/manage"
                             element={<SellerConcertManagementPage />}
-                        />{' '}
-                        {/* 콘서트 관리 */}
+                        />
                     </Route>
                 </Route>
+
+                {/* 관리자 페이지 그룹 라우트: AdminLayout을 사용하여 사이드바를 포함 */}
+                <Route
+                    path="/admin"
+                    element={
+                        // 관리자가 아니거나 비로그인 상태일 경우 UnauthorizedAccessPage로 리다이렉트
+                        !isLoggedIn || !isAdmin ? (
+                            <Navigate to="/unauthorized" replace />
+                        ) : (
+                            <AdminLayout />
+                        )
+                    }
+                >
+                    <Route index element={<AdminDashboard />} />
+                    {/* 판매자 권한 관리 페이지 라우트 추가 */}
+                    <Route
+                        path="seller-management"
+                        element={<AdminSellerManagement />}
+                    />
+                </Route>
             </Route>
+
+            {/** — 권한 없음 페이지 — **/}
+            <Route path="/unauthorized" element={<UnauthorizedAccessPage />} />
 
             {/** — 404 처리 — **/}
             <Route path="*" element={<NotFoundPage />} />

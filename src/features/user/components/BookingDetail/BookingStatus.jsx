@@ -46,7 +46,7 @@ export function BookingStatus({ status, timeUntilConcert }) {
             </span>
             {status === 'CONFIRMED' && (
                 <span className="text-sm text-gray-600 mt-1">
-                    공연까지 {timeUntilConcert}
+                    공연까지<br></br> {timeUntilConcert}
                 </span>
             )}
         </div>
