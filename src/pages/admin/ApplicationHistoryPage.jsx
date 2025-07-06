@@ -7,11 +7,12 @@ import Modal from '../../shared/components/ui/Modal';
 import InputField from '../../shared/components/ui/InputField';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
+import useDebounce from '../../shared/hooks/useDebounce'; // useDebounce 훅 import
 
 // 판매자 승인 이력 타입 (백엔드 SellerApprovalHistory.ActionType과 일치)
 const SELLER_HISTORY_TYPES = [
     'ALL', // 전체 (프론트엔드에서 추가)
-    'REQUEST', // (기존 명칭으로, SUBMITTED와 동일)
+    'REQUEST', // 신청 대기 중
     'APPROVED', // 승인됨
     'REJECTED', // 반려됨
     'WITHDRAWN', // 자발적 철회됨
@@ -49,22 +50,26 @@ const ApplicationHistoryPage = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
     const [pageSize, setPageSize] = useState(10);
-    const [searchKeyword, setSearchKeyword] = useState(initialSearchKeyword);
+
+    // 검색어 상태를 두 개로 분리: 즉시 업데이트되는 searchTerm과 디바운스된 searchKeyword
+    const [searchTerm, setSearchTerm] = useState(initialSearchKeyword);
+    const debouncedSearchKeyword = useDebounce(searchTerm, 500); // 0.5초 디바운스
+
     const [typeFilter, setTypeFilter] = useState('ALL');
 
     const [showHistoryModal, setShowHistoryModal] = useState(false);
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [userHistory, setUserHistory] = useState([]);
+    const [selectedUserHistory, setSelectedUserHistory] = useState(null); // 모달에 표시할 선택된 이력 항목
+    const [detailedApplication, setDetailedApplication] = useState(null); // 추가: 상세 조회된 판매자 신청 정보
 
     const navigate = useNavigate();
-    const [sellerRequestList, setSellerRequestList] = useState([]);
 
     const fetchAllSellerHistory = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             let response;
-            if (userIdFromUrl && searchKeyword === userIdFromUrl) {
+            // userIdFromUrl이 있고, 현재 디바운스된 검색어가 userIdFromUrl과 일치할 때만 사용자별 이력 조회
+            if (userIdFromUrl && debouncedSearchKeyword === userIdFromUrl) {
                 const historyList =
                     await adminSellerService.getSellerApprovalHistoryForUser(
                         userIdFromUrl,
@@ -96,7 +101,7 @@ const ApplicationHistoryPage = () => {
                     page: currentPage,
                     size: pageSize,
                     typeFilter: typeFilter === 'ALL' ? undefined : typeFilter,
-                    keyword: searchKeyword || undefined,
+                    keyword: debouncedSearchKeyword || undefined, // 디바운스된 검색어 사용
                     sort: 'createdAt,desc',
                 };
                 response =
@@ -115,7 +120,13 @@ const ApplicationHistoryPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, pageSize, searchKeyword, typeFilter, userIdFromUrl]);
+    }, [
+        currentPage,
+        pageSize,
+        debouncedSearchKeyword,
+        typeFilter,
+        userIdFromUrl,
+    ]); // 의존성 배열에 debouncedSearchKeyword 추가
 
     useEffect(() => {
         const currentUrlUserId = searchParams.get('userId');
@@ -128,55 +139,89 @@ const ApplicationHistoryPage = () => {
               ? currentUrlUserId
               : currentUrlKeyword || '';
 
-        if (searchKeyword !== newSearchValFromUrl) {
-            setSearchKeyword(newSearchValFromUrl);
+        // URL 파라미터로 받은 키워드를 searchTerm에 즉시 반영
+        if (searchTerm !== newSearchValFromUrl) {
+            setSearchTerm(newSearchValFromUrl);
             setCurrentPage(0);
-        } else {
+        }
+    }, [
+        searchParams,
+        userIdFromUrl,
+        userNicknameFromUrl,
+        urlKeyword,
+        searchTerm,
+    ]); // searchTerm 의존성 추가
+
+    // debouncedSearchKeyword가 변경될 때만 데이터를 가져오도록 useEffect 추가
+    useEffect(() => {
+        // 초기 로드 시 또는 debouncedSearchKeyword가 변경될 때만 fetch 호출
+        // URL에서 userId가 넘어온 경우, 해당 userId에 대한 검색은 `debouncedSearchKeyword === userIdFromUrl`일 때만 유효하도록 조건을 추가하여 불필요한 전체 검색 방지
+        const currentUrlUserId = searchParams.get('userId');
+        const currentUrlKeyword = searchParams.get('keyword');
+        const isInitialLoadWithUserId =
+            currentUrlUserId && !debouncedSearchKeyword; // userId로 페이지 진입 시 초기 로딩
+        const isUrlKeywordPresent =
+            currentUrlKeyword || (currentUrlUserId && userNicknameFromUrl);
+
+        // URL 파라미터로 인한 초기 로드나, 디바운스된 검색어가 변경되었을 때만 fetch
+        if (
+            (debouncedSearchKeyword !== undefined &&
+                debouncedSearchKeyword !== null) ||
+            isInitialLoadWithUserId ||
+            isUrlKeywordPresent
+        ) {
             fetchAllSellerHistory();
         }
-
-        const fetchSellerRequests = async () => {
-            try {
-                const response =
-                    await adminSellerService.getAllSellerApplications();
-                setSellerRequestList(response.content);
-            } catch (err) {
-                console.error(
-                    '판매자 신청서 데이터를 불러오는 데 실패했습니다:',
-                    err,
-                );
-            }
-        };
-
-        fetchSellerRequests();
     }, [
+        debouncedSearchKeyword,
         currentPage,
         pageSize,
-        searchKeyword,
         typeFilter,
         fetchAllSellerHistory,
         searchParams,
         userIdFromUrl,
         userNicknameFromUrl,
-        urlKeyword,
     ]);
 
-    const handleViewUserHistory = async (user) => {
-        setSelectedUser(user);
-        setLoading(true);
-        setError(null);
-        try {
-            const history =
-                await adminSellerService.getSellerApprovalHistoryForUser(
-                    user.userId,
+    // handleViewUserHistory 함수 수정: 신청서 상세 정보 추가 조회
+    const handleViewUserHistory = async (historyItem) => {
+        setSelectedUserHistory(historyItem);
+        setDetailedApplication(null);
+
+        console.log('handleViewUserHistory 호출됨. historyItem:', historyItem);
+        console.log(
+            'historyItem.sellerApplicationId:',
+            historyItem.sellerApplicationId,
+        );
+
+        if (historyItem.sellerApplicationId) {
+            setLoading(true);
+            try {
+                console.log(
+                    `API-04-07 호출 시도: applicationId = ${historyItem.sellerApplicationId}`,
                 );
-            setUserHistory(history);
-            setShowHistoryModal(true);
-        } catch (err) {
-            setError(err.message || '유저 이력을 불러오지 못했습니다.');
-        } finally {
+                const appDetail =
+                    await adminSellerService.getSellerApplicationDetail(
+                        historyItem.sellerApplicationId,
+                    );
+                console.log('API-04-07 응답 데이터:', appDetail);
+                setDetailedApplication(appDetail);
+            } catch (err) {
+                console.error('신청서 상세 정보 로드 실패:', err);
+                setError(
+                    err.message || '신청서 상세 정보를 불러오지 못했습니다.',
+                );
+                setDetailedApplication(null);
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            console.warn(
+                'historyItem에 sellerApplicationId가 없습니다. 상세 정보 조회를 건너뜁니다.',
+            );
             setLoading(false);
         }
+        setShowHistoryModal(true);
     };
 
     const handlePageChange = (newPage) => {
@@ -196,24 +241,17 @@ const ApplicationHistoryPage = () => {
         setSearchParams(newSearchParams);
     };
 
+    // 검색어 입력 핸들러 수정: searchTerm만 업데이트
     const handleKeywordChange = (e) => {
         const newKeyword = e.target.value;
-        setSearchKeyword(newKeyword);
-        setCurrentPage(0);
-        const newSearchParams = new URLSearchParams(searchParams);
-        if (newKeyword.trim()) {
-            newSearchParams.set('keyword', newKeyword.trim());
-            newSearchParams.delete('userId');
-            newSearchParams.delete('userNickname');
-        } else {
-            newSearchParams.delete('keyword');
-        }
-        newSearchParams.set('page', '0');
-        setSearchParams(newSearchParams);
+        setSearchTerm(newKeyword); // 즉시 InputField의 값만 업데이트
+        setCurrentPage(0); // 검색어가 변경되면 페이지를 0으로 초기화
+        // URLSearchParams는 debouncedSearchKeyword가 변경될 때 useEffect에서 처리
     };
 
     const handleClearSearch = useCallback(() => {
-        setSearchKeyword('');
+        setSearchTerm(''); // 검색어 초기화
+        // URLSearchParams도 초기화 (debouncedSearchKeyword가 ''로 변경되면 useEffect에서 처리)
         setCurrentPage(0);
         const newSearchParams = new URLSearchParams();
         newSearchParams.set('page', '0');
@@ -276,7 +314,9 @@ const ApplicationHistoryPage = () => {
 
         // 끝 부분 '...'
         if (endPage < totalPages - 1) {
-            visiblePages.push('...');
+            if (endPage < totalPages - 2) {
+                visiblePages.push('...');
+            }
         }
 
         return visiblePages;
@@ -284,32 +324,73 @@ const ApplicationHistoryPage = () => {
 
     // --- 동적 제목 생성 ---
     const getDynamicTitle = useCallback(() => {
-        if (userIdFromUrl && searchKeyword === userIdFromUrl) {
+        if (userIdFromUrl && debouncedSearchKeyword === userIdFromUrl) {
+            // debouncedSearchKeyword 사용
             if (userNicknameFromUrl) {
                 return `${userNicknameFromUrl} 님의 판매자 권한 이력 (총 ${totalElements}건)`;
             }
             return `ID: ${userIdFromUrl} 님의 판매자 권한 이력 (총 ${totalElements}건)`;
         }
 
-        if (searchKeyword.trim()) {
+        if (debouncedSearchKeyword.trim()) {
+            // debouncedSearchKeyword 사용
             let prefix = '';
-            if (userNicknameFromUrl && searchKeyword === userNicknameFromUrl) {
-                prefix = `${userNicknameFromUrl} 님의`;
-            } else if (!isNaN(searchKeyword) && searchKeyword.length > 0) {
-                prefix = `ID: ${searchKeyword} 님의`;
-            } else if (
-                searchKeyword.includes('회사') ||
-                searchKeyword.includes('기업') ||
-                searchKeyword.includes('(주)')
+            if (
+                userNicknameFromUrl &&
+                debouncedSearchKeyword === userNicknameFromUrl
             ) {
-                prefix = `업체명: ${searchKeyword} 의`;
+                // debouncedSearchKeyword 사용
+                prefix = `${userNicknameFromUrl} 님의`;
+            } else if (
+                !isNaN(debouncedSearchKeyword) &&
+                debouncedSearchKeyword.length > 0
+            ) {
+                // debouncedSearchKeyword 사용
+                prefix = `ID: ${debouncedSearchKeyword} 님의`;
+            } else if (
+                debouncedSearchKeyword.includes('회사') || // debouncedSearchKeyword 사용
+                debouncedSearchKeyword.includes('기업') || // debouncedSearchKeyword 사용
+                debouncedSearchKeyword.includes('(주)') // debouncedSearchKeyword 사용
+            ) {
+                prefix = `업체명: ${debouncedSearchKeyword} 의`; // debouncedSearchKeyword 사용
             } else {
-                prefix = `${searchKeyword} 님의`;
+                prefix = `${debouncedSearchKeyword} 님의`; // debouncedSearchKeyword 사용
             }
             return `${prefix} 판매자 권한 이력 (총 ${totalElements}건)`;
         }
         return `📜 전체 판매자 권한 이력 (총 ${totalElements}건)`;
-    }, [userIdFromUrl, userNicknameFromUrl, searchKeyword, totalElements]);
+    }, [
+        userIdFromUrl,
+        userNicknameFromUrl,
+        debouncedSearchKeyword,
+        totalElements,
+    ]); // 의존성 배열에 debouncedSearchKeyword 추가
+
+    // 날짜 포맷터 추가
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        });
+    };
+
+    // 사업자등록번호 포맷터
+    const formatBusinessNumber = (num) => {
+        return num ? num.replace(/(\d{3})(\d{2})(\d{5})/, '$1-$2-$3') : 'N/A';
+    };
+
+    // 전화번호 포맷터
+    const formatPhoneNumber = (phone) => {
+        return phone
+            ? phone.replace(/(\d{2,3})(\d{3,4})(\d{4})/, '$1-$2-$3')
+            : 'N/A';
+    };
 
     if (loading) {
         return <LoadingSpinner message="판매자 이력 데이터를 불러오는 중..." />;
@@ -351,7 +432,7 @@ const ApplicationHistoryPage = () => {
                         <div className="min-w-[300px]">
                             <InputField
                                 name="searchKeyword"
-                                value={searchKeyword}
+                                value={searchTerm} // searchTerm 사용 (즉시 업데이트)
                                 onChange={handleKeywordChange}
                                 placeholder="유저 ID, 닉네임, 업체명 등"
                                 clearable={true}
@@ -529,100 +610,90 @@ const ApplicationHistoryPage = () => {
                 )}
             </section>
 
-            {showHistoryModal && selectedUser && (
+            {/* 판매자 이력 상세 모달 */}
+            {showHistoryModal && selectedUserHistory && (
                 <Modal
                     isOpen={showHistoryModal}
                     onClose={() => setShowHistoryModal(false)}
-                    title={`'${selectedUser.username}' (${selectedUser.userNickname}) 님의 이력 상세`}
+                    title={`'${selectedUserHistory.username}' (${selectedUserHistory.userNickname}) 님의 이력 상세`}
                     size="large"
                     modalClassName="bg-[#1a232f]"
                 >
-                    {/* ✅ 1. 신청서 상세 정보 */}
+                    {/* 신청서 상세 정보 (API-04-07로 가져온 데이터) */}
                     <div className="mb-6">
                         <h3 className="text-white font-semibold mb-2">
                             신청서 상세 정보
                         </h3>
-
-                        {(() => {
-                            const application = selectedUser?.applicationId
-                                ? sellerRequestList.find(
-                                      (r) =>
-                                          r.id === selectedUser.applicationId,
-                                  )
-                                : null;
-
-                            // 🛠 포맷팅 유틸
-                            const formatBusinessNumber = (num) => {
-                                return (
-                                    num?.replace(
-                                        /(\d{3})(\d{2})(\d{5})/,
-                                        '$1-$2-$3',
-                                    ) || '-'
-                                );
-                            };
-
-                            const formatPhoneNumber = (phone) => {
-                                return (
-                                    phone?.replace(
-                                        /(\d{2,3})(\d{3,4})(\d{4})/,
-                                        '$1-$2-$3',
-                                    ) || '-'
-                                );
-                            };
-
-                            const formatDate = (dateStr) => {
-                                return new Date(dateStr).toLocaleString();
-                            };
-
-                            return application ? (
-                                <div className="text-gray-300 text-sm space-y-1 border border-gray-600 rounded p-4 bg-[#1a232f]">
-                                    <p>
-                                        <strong>신청서 ID:</strong>{' '}
-                                        {application.id}
-                                    </p>
-                                    <p>
-                                        <strong>사업자명:</strong>{' '}
-                                        {application.businessName}
-                                    </p>
-                                    <p>
-                                        <strong>대표자명:</strong>{' '}
-                                        {application.ceoName}
-                                    </p>
-                                    <p>
-                                        <strong>사업자번호:</strong>{' '}
-                                        {formatBusinessNumber(
-                                            application.businessNumber,
-                                        )}
-                                    </p>
-                                    <p>
-                                        <strong>연락처:</strong>{' '}
-                                        {formatPhoneNumber(
-                                            application.phoneNumber,
-                                        )}
-                                    </p>
-                                    <p>
-                                        <strong>사업장 주소:</strong>{' '}
-                                        {application.businessAddress}
-                                    </p>
-                                    <p>
-                                        <strong>신청 일시:</strong>{' '}
-                                        {formatDate(application.createdAt)}
-                                    </p>
-                                </div>
-                            ) : (
-                                <p className="text-gray-400">
-                                    신청서 정보를 찾을 수 없습니다.
+                        {detailedApplication ? (
+                            <div className="text-gray-300 text-sm space-y-1 border border-gray-600 rounded p-4 bg-[#1a232f]">
+                                <p>
+                                    <strong>신청서 ID:</strong>{' '}
+                                    {detailedApplication.applicationId}
                                 </p>
-                            );
-                        })()}
+                                <p>
+                                    <strong>업체명:</strong>{' '}
+                                    {detailedApplication.companyName}
+                                </p>
+                                <p>
+                                    <strong>사업자번호:</strong>{' '}
+                                    {formatBusinessNumber(
+                                        detailedApplication.businessNumber,
+                                    )}
+                                </p>
+                                <p>
+                                    <strong>대표자명:</strong>{' '}
+                                    {detailedApplication.representativeName}
+                                </p>
+                                <p>
+                                    <strong>담당자 연락처:</strong>{' '}
+                                    {formatPhoneNumber(
+                                        detailedApplication.representativePhone,
+                                    )}
+                                </p>
+                                {detailedApplication.uploadedFileUrl && (
+                                    <p>
+                                        <strong>제출 서류:</strong>{' '}
+                                        <a
+                                            href={
+                                                detailedApplication.uploadedFileUrl
+                                            }
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:underline"
+                                        >
+                                            보기
+                                        </a>
+                                    </p>
+                                )}
+                                <p>
+                                    <strong>신청 일시:</strong>{' '}
+                                    {formatDate(detailedApplication.createdAt)}
+                                </p>
+                                <p>
+                                    <strong>최종 수정 일시:</strong>{' '}
+                                    {formatDate(detailedApplication.updatedAt)}
+                                </p>
+                                <p>
+                                    <strong>현재 상태:</strong>{' '}
+                                    {STATUS_LABELS[
+                                        detailedApplication.status
+                                    ] || detailedApplication.status}
+                                </p>
+                            </div>
+                        ) : (
+                            <p className="text-gray-400">
+                                이력 항목에 연결된 상세 신청서 정보가 없거나,
+                                불러오는데 실패했습니다.
+                            </p>
+                        )}
                     </div>
 
-                    {/* ✅ 2. 최근 이력 5건 */}
+                    {/* 선택된 이력 항목 */}
                     <div className="overflow-x-auto mb-4">
                         <h4 className="text-white font-semibold mb-2">
-                            최근 이력 5건
+                            선택된 이력 항목
                         </h4>
-                        <table className="min-w-full divide-y divide-gray-700">
+                        <table className="min-w-full divide-y divide-gray-700 text-left">
                             <thead className="bg-[#243447]">
                                 <tr>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-300">
@@ -640,44 +711,35 @@ const ApplicationHistoryPage = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-[#1a232f] divide-y divide-gray-700">
-                                {userHistory.slice(0, 5).map((h) => (
-                                    <tr
-                                        key={h.id}
-                                        className="cursor-pointer hover:bg-gray-800"
-                                        onClick={() => setSelectedUser(h)}
-                                    >
-                                        <td className="px-4 py-3 text-sm text-white">
-                                            {h.id}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-300">
-                                            {STATUS_LABELS[h.type] || h.type}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-300">
-                                            {h.reason || 'N/A'}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-300">
-                                            {new Date(
-                                                h.createdAt,
-                                            ).toLocaleString()}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {/* 선택된 이력 항목만 표시 */}
+                                <tr className="cursor-pointer hover:bg-gray-800">
+                                    <td className="px-4 py-3 text-sm text-white">
+                                        {selectedUserHistory.id}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-300">
+                                        {STATUS_LABELS[
+                                            selectedUserHistory.type
+                                        ] || selectedUserHistory.type}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-300">
+                                        {selectedUserHistory.reason || 'N/A'}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-300">
+                                        {new Date(
+                                            selectedUserHistory.createdAt,
+                                        ).toLocaleString()}
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
 
-                    {/* ✅ 3. 전체 이력 보기 버튼 */}
                     <div className="mt-4 text-right">
                         <button
                             className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700"
-                            onClick={() => {
-                                navigate(
-                                    `/admin/applications?userId=${selectedUser.userId}`,
-                                );
-                                setShowHistoryModal(false);
-                            }}
+                            onClick={() => setShowHistoryModal(false)}
                         >
-                            전체 이력 보기 →
+                            닫기
                         </button>
                     </div>
                 </Modal>
